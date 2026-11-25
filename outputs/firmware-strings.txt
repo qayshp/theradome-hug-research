@@ -1,0 +1,37 @@
+Selected model, status, measurement and diagnostic labels.
+Each address is a PIC program-memory byte address.
+
+0x1AF3	Laser Off Current
+0x1B05	Laser On Current
+0x1B16	Proximity Offset
+0x1B34	Temperature
+0x1B4C	Button/LED
+0x1B6B	Battery
+0x1B7B	Charge
+0x1B90	Audio
+0x1B96	EPROM
+0x1C4D	 THERADOME LH80  -  COMMAND MENU *********
+0x1C78	 THERADOME LH80  -  BOARD TEST *********
+0x1EE0	 TREATMENTS COMPLETED LOG 
+0x1F80	PRODUCT CODE REVISION - 
+0x1FFD	UPGRADE INSTALL DATE - 
+0x2015	FACTORY INSTALL DATE - 
+0x202D	BOOT LOADER REVISION - 
+0x208B	CALIBRATION CONSTANTS
+0x216A	VOICE REVISION - 
+0x217C	Laser Current(mA)
+0x21B1	SERIAL NUMBER - 
+0x2245	TEMPERATURE = 
+0x2263	ERROR COUNTERS
+0x2333	Press Button
+0x2340	Revision - 
+0x234C	BATTERY = 
+0x237F	MFG FLAGS
+0x2389	Test Mode
+0x23A5	Charging
+0x23C7	Temp(C)
+0x23CF	Charged
+0x23D7	Battery
+0x23DF	=RED  
+0x23ED	=GREEN
+0x23F4	Error
