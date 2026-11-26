@@ -31,6 +31,8 @@ At 3.60 V or higher, all 22 current readings fell within 10.43–10.51 mA. The 2
 
 [Stock rebuild and hashes](../model/rebuild.md) · [Voice test harness and original audio behavior](../model/volume.md)
 
+A later experiment extended the fix to restore the selected volume at startup and apply it to automatic countdowns. The assembly overlay and build recipe are available alongside its 1,136 offline instruction-level tests. [Persistent volume and countdowns](volume-settings.md)
+
 ## Backup and recovery
 
 The USB menu did not expose a command to export program flash or a complete EEPROM image. The parameter and treatment displays document this unit’s visible state. The HUG HEX is a separate, vendor-provided application image. It omits the bootloader, chip configuration words, unit EEPROM and voice storage. It cannot restore those regions. [Live tests](#live-evo-lh40-tests) · [Archive coverage](firmware.md)

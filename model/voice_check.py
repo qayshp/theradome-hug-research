@@ -104,6 +104,8 @@ class Runner:
             byte_op = op & 0xFC00
             result = None
             skip = False
+            if op == 0x00:  # NOP
+                continue
             if op == 0x12:
                 if not stack:
                     return

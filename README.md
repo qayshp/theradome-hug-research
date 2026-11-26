@@ -15,6 +15,7 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 | What survives power loss? | [EEPROM storage map](model/eeprom.md) with the completed-session counter, 50-entry history, and bytewise write order. The volume selection lives in RAM. |
 | How closely does the reconstruction match? | [Build and verification](model/rebuild.md). The recovered assembly reproduces all 50,816 populated bytes. Host-side models also run individual paths against instructions read from the original HEX. |
 | What worked on a physical LH40, and what would recovery require? | [USB, clock, offline patch and recovery results](docs/verification.md). |
+| Can volume survive restart and apply to every countdown? | [Experimental PIC18 volume settings overlay, build recipe and offline tests](docs/volume-settings.md). |
 
 ## Try it offline
 
