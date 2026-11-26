@@ -4,9 +4,24 @@ The project started with an EVO LH40 connected to a Windows 11 ARM64 PC. Windows
 
 ## USB and charging
 
-The USB IDs match FTDI’s FT-X bridge family. Windows initially reported driver error Code 28. Once the converter and serial-port drivers were associated, the device appeared as a healthy virtual COM port. That verified Windows enumeration. No live HUG handshake, installed firmware revision or device memory dump was captured. HUG itself enumerates serial ports and examines the replies. [FTDI driver guide](https://ftdichip.com/wp-content/uploads/2022/05/AN_396-FTDI-Drivers-Installation-Guide-for-Windows-10_11.pdf) · [HUG Java analysis](java.md)
+The USB IDs match FTDI’s FT-X bridge family. Windows initially reported driver error Code 28. Once the converter and serial-port drivers were associated, the device appeared as a healthy virtual COM port. HUG itself enumerates serial ports and examines the replies. [FTDI driver guide](https://ftdichip.com/wp-content/uploads/2022/05/AN_396-FTDI-Drivers-Installation-Guide-for-Windows-10_11.pdf) · [HUG Java analysis](java.md)
 
 Using the same data-capable cable, the owner observed charging on a wall adapter and no apparent charging on the PC. The current supplied by either source was never measured. The firmware can explain the master-switch display once the helmet recognizes a charge state. During ordinary charging it holds the green channel steady and varies red. Theradome describes a slowly changing light on the charger and specifies ten seconds of solid green for a full charge. [Charge inputs](../model/inputs.md) · [Indicator waveform](../model/indicator.md) · [Theradome charger guide](https://theradome.com/a/docs/troubleshooting/use-and-care-theradome-charger)
+
+## Reading revision 126.6 on COM7
+
+On this EVO LH40, holding the master switch produced the spoken announcement “Theradome Revision 126.6.” With COM7 already open, the owner signaled the end of the announcement. The laptop reached the helmet’s password prompt and used HUG’s normal login. The `BOARD TEST` banner confirmed that the helmet accepted it. The connection used 57,600 baud, eight data bits, no parity and one stop bit, with DTR and RTS off.
+
+The laptop requested the menu with `?` and selected its `[D] Display EEPROM Parameters` entry. HUG’s version reader uses this same `D` command and parses the product code revision. The helmet’s reply also contains the bootloader revision. These two fields explain the two parts of the spoken announcement. [HUG version query and parser](../java/SerialCommunication/Communication.java#L510)
+
+```text
+PRODUCT CODE REVISION - 126
+BOOT LOADER REVISION - 6
+```
+
+The laptop closed COM7 after that read. With the USB cable still connected, it later reopened COM7 and listened for 2.2 seconds without receiving any bytes. One carriage return brought back the `BOARD TEST` banner and `Press [?] for Menu`. The laptop repeated the menu and parameter queries without asking the owner to press the button or sending another login. The helmet returned the two fields shown above. The session timeout and behavior after a power cycle remain unknown.
+
+The menu listed no command to read program flash. The application revision matches the archived HEX, but comparing the installed application byte for byte would require a dump. Both USB checks used display commands only after reaching the menu. [Firmware inventory](firmware.md)
 
 ## Could the LH40 and LH80 share a controller?
 

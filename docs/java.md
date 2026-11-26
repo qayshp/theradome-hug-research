@@ -27,16 +27,17 @@ CFR 0.152 produced all 22 listings. An independent rerun reproduced every line o
 
 ### Editorial redactions in the Java listings
 
-Each `/* [EDITORIAL REDACTION] … */` comment marks the exact position of an expression the repository editors withheld. The space in the Java statement is deliberately incomplete. The comment describes what the original application supplied there. There are five such omissions across four files.
+Each `/* [EDITORIAL REDACTION] … */` comment marks the exact position of an expression the repository editors withheld. The space in the Java statement is deliberately incomplete. The comment describes what the original application supplied there. This local branch retains four mail-related omissions across three files.
 
 | Listing | Expression omitted |
 | --- | --- |
 | [Contact.java](../java/com/screens/Contact.java#L81) | The contact form’s recipient email address. |
 | [FirmwareUpdateMenu.java](../java/com/screens/FirmwareUpdateMenu.java#L113) | The support form’s recipient email address. |
 | [SMTPConfig.java](../java/com/screens/SMTPConfig.java#L36) | The sending account address and its SMTP password, each marked separately. The account address also served as the support form’s recipient. |
-| [Communication.java](../java/SerialCommunication/Communication.java#L471) | The byte-array initializer containing the helmet login credential. The surrounding method shows how HUG sends the request, checks the reply, and returns success or failure. |
 
-The first public revision used quoted placeholder strings for the mail fields and showed the login method as a stub that always returned `false`. Those were publication edits. This transcription preserves the original decompiler output around each omission, including both login outcomes. A line-by-line comparison found no other differences across the 22 Java listings apart from line endings. The firmware HEX and binary are preserved byte for byte and are outside the scope of these Java redactions.
+The first public revision used quoted placeholders for the mail fields and a login method that always returned `false`. The next public revision restored the original login control flow and marked the omitted credential with an editorial comment. This local branch restores the original `Communication.java` listing. The COM7 session records how one EVO LH40 responded to HUG’s login and revision query. [COM7 session and revision output](device.md#reading-revision-1266-on-com7)
+
+Comparing all 22 Java listings on this branch with the original decompiler output found differences only at the four marked mail expressions, apart from line endings. The firmware HEX and binary are preserved byte for byte and are outside the scope of these Java redactions.
 
 ## Reproducing the static inspection
 
