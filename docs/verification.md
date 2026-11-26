@@ -2,6 +2,8 @@
 
 The physical unit was a Theradome EVO LH40. Its diagnostics banner said LH80 and its revision reply was 126.6. The archived HUG application image also identifies itself as LH80 and reports application revision 126. The installed flash bytes and board revision remain unverified. [Device and model evidence](device.md)
 
+[USB, clock and alarm details](usb-clock-details.md) records the serial exchanges and their limits. [Treatment analysis](treatment-analysis.md) gives the figures, likely charging windows and current-feedback trace. [Archive and firmware test evidence](research-evidence.md) distinguishes the two experimental builds and links their source.
+
 ## Live EVO LH40 tests
 
 | Test | Observed result |

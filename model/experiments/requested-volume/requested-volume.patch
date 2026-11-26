@@ -1,0 +1,67 @@
+--- a/model/rebuild.asm
++++ b/model/rebuild.asm
+@@ -10073,34 +10073,40 @@
+ loc_735C:
+         movlb   0x2                         ; 735C
+         bra     loc_73AE                    ; 735E
++; States 7 and 8 share the button dispatcher. Only a requested time report
++; temporarily uses the selected volume. The common epilogue restores saved gain.
+ loc_7360:
+         movf    0xf3, 0x0, 0x1              ; 7360
+         xorlw   0x02                        ; 7362
+-        bnz     loc_736E                    ; 7364
+-        movlw   0x01                        ; 7366
+-        call    loc_CA60, 0x0               ; 7368
+-        bra     loc_74DC                    ; 736C
+-loc_736E:
+-        movf    0xf3, 0x0, 0x1              ; 736E
+-        xorlw   0x05                        ; 7370
+-        bz      loc_72AC                    ; 7372
+-        movlw   0x07                        ; 7374
+-        call    loc_D892, 0x0               ; 7376
+-        bra     loc_735A                    ; 737A
++        bz      requested_time_gain         ; 7364
++        xorlw   0x07                        ; 7366, now compares event with 5
++        bz      loc_72AC                    ; 7368
++        movlw   0x07                        ; 736A
++        call    loc_D892, 0x0               ; 736C
++        bra     loc_735A                    ; 7370
++requested_time_store_gain:
++        movwf   0xb9, 0x1                   ; 7372, BSR = 2
++requested_time_report:
++        movlw   0x01                        ; 7374
++        call    loc_CA60, 0x0               ; 7376
++        bra     loc_74DC                    ; 737A
+ loc_737C:
+-        movf    0xf3, 0x0, 0x1              ; 737C
+-        xorlw   0x02                        ; 737E
+-        bnz     loc_738A                    ; 7380
+-        movlw   0x01                        ; 7382
+-        call    loc_CA60, 0x0               ; 7384
+-        bra     loc_74DC                    ; 7388
+-loc_738A:
+-        movf    0xf3, 0x0, 0x1              ; 738A
+-        xorlw   0x05                        ; 738C
+-        bz      loc_72AC                    ; 738E
+-        movlw   0x07                        ; 7390
+-        call    loc_D892, 0x0               ; 7392
+-        bra     loc_735A                    ; 7396
++        bra     loc_7360                    ; 737C, preserve paused-state entry
++requested_time_gain:
++        movf    0x44, 0x0, 0x0              ; 737E, selected volume index
++        andlw   0xfc                        ; 7380
++        bnz     requested_time_report      ; 7382, invalid index keeps stock gain
++        movlw   0x00                        ; 7384
++        btfsc   0x44, 0x0, 0x0              ; 7386
++        movlw   0x01                        ; 7388
++        btfss   0x44, 0x1, 0x0              ; 738A
++        bra     requested_time_bank        ; 738C
++        movlw   0x03                        ; 738E
++        btfsc   0x44, 0x0, 0x0              ; 7390
++        movlw   0x0e                        ; 7392
++requested_time_bank:
++        movlb   0x2                         ; 7394
++        bra     requested_time_store_gain  ; 7396
+ loc_7398:
+         movf    0xf3, 0x0, 0x1              ; 7398
+         xorlw   0x02                        ; 739A
