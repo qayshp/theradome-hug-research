@@ -18,7 +18,7 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 | What worked on a physical LH40, and what would recovery require? | [USB, clock, offline patch and recovery results](docs/verification.md). |
 | How did COM7, the clock and the alarms behave? | [Windows ARM64 setup, serial observations, and clock and alarm details](docs/usb-clock-details.md). |
 | What did the 50 treatment records show? | [Treatment record format, battery and current plots, and feedback analysis](docs/treatment-analysis.md). |
-| Can the selected volume survive restart and apply to the ready prompt and countdowns? | [Experimental PIC18 volume settings overlay, build recipe and offline tests](docs/volume-settings.md). |
+| Can the selected volume survive restart and apply to ordinary treatment prompts and countdowns? | [Experimental PIC18 volume settings overlay, build recipe and LH40 test results](docs/volume-settings.md). |
 | How can I build my own edit and prepare it for HUG? | [Custom application build and local HUG bundle guide](docs/custom-firmware.md). |
 | What evidence distinguishes the archive search and the two firmware tests? | [Search reproducibility and firmware test evidence](docs/research-evidence.md). |
 

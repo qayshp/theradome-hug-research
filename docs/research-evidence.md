@@ -1,6 +1,6 @@
 # Archive and firmware test evidence
 
-The archive search recovered the vendor installers and the stock application. Two experimental builds preceded the live update on the EVO LH40. The second build was installed. A later revision adds the ready-prompt fix and has been tested offline. The installer fingerprints, source, and reported results are public. The vendor packages, raw archive exports, raw device captures, local updater bundle, and compiled experimental images are held in the local research archive. [Discovery and fingerprints](discovery.md) · [Live test](volume-settings.md#live-evo-lh40-test-on-november-26-2026) · [Ready-prompt build](volume-settings.md#offline-build-and-test)
+The archive search recovered the vendor installers and the stock application. Two experimental builds preceded the original live update on the EVO LH40. The second build was installed. A later update installed the build that applies selected volume to ordinary treatment prompts using the same HEX rows. The repository records installer fingerprints, source, and reported results. The vendor packages, raw archive exports, raw device captures, local updater bundle, and compiled experimental images are held in the local research archive. [Discovery and fingerprints](discovery.md) · [Original live test](volume-settings.md#live-evo-lh40-test-on-november-26-2026) · [Expanded update](volume-settings.md#expanded-treatment-prompt-update)
 
 ## Repeating the archive search
 
@@ -25,7 +25,7 @@ The Common Crawl bulk check used the public sorted URL index. For each collectio
 
 The first experiment has its own source patch, HEX encoder, and verifier. Its verifier compares decoded instructions, speech requests, and resulting state with the archived application. The later build's exact assembly overlay, builder, and verifier are available in the source commit used for the live test. Both local HEX files matched their recorded SHA-256 values, and both offline verifiers passed on rerun. [First experiment source and build notes](../model/experiments/requested-volume/README.md) · [First experiment results](verification.md#offline-build-and-volume-change) · [Second experiment source commit](https://github.com/qayshp/theradome-hug-research/commit/994518261dcfdc6da08d11030e52c03f6ecd04ab) · [Second experiment build and tests](volume-settings.md#offline-build-and-test)
 
-## What the transfer records establish
+## What the original transfer records establish
 
 | Observation | Evidence |
 | --- | --- |
@@ -34,4 +34,4 @@ The first experiment has its own source patch, HEX encoder, and verifier. Its ve
 | After reboot | A separate session returned revision `126.6`. That revision is also reported by the stock program. The listening test supplied the independent observation of changed behavior. |
 | After calibration | The later EEPROM display supplies the second set of values in the published comparison. It is a selected parameter display. |
 
-The physical result is limited to this LH40 and the requested announcement. Automatic countdown volume and retention across a later physical restart still need listening checks. Direct flash readback, interrupted-update recovery, and stock reinstallation on this helmet remain unverified. [Live test record](volume-settings.md#live-evo-lh40-test-on-november-26-2026) · [Before-and-after parameter display](volume-settings.md#eeprom-display-before-the-update-and-after-calibration) · [Recovery coverage](verification.md#backup-and-recovery)
+The expanded build also received the bootloader's `Success` reply, and the application returned `126.6` in a fresh USB session. Physical listening evidence remains limited to the requested announcement on the earlier build. The ordinary prompts, automatic countdowns and retention across a physical restart still need listening checks. Direct flash readback, interrupted-update recovery, and stock reinstallation on this helmet remain unverified. [Live test record](volume-settings.md#live-evo-lh40-test-on-november-26-2026) · [Before-and-after parameter display](volume-settings.md#eeprom-display-before-the-update-and-after-calibration) · [Recovery coverage](verification.md#backup-and-recovery)

@@ -12,12 +12,16 @@ SOURCE = ROOT / "model/volume-settings.asm"
 STOCK_SHA256 = "40caa7fd679e70205a8acc923f5586484884060e9ef4eb0cfaa4c4d23f120c69"
 APPLICATION_START = 0x1900
 EXTENSION_START = 0xDF80
-PIC_PROGRAM_END = 0x10000
+# Exclusive end of the flash rows already used by the ready-prompt image.
+APPLICATION_END = 0xE040
 RECORD_SIZE = 64
 HOOKS = (
     (0x5358, 4),
+    (0x5D86, 4), (0x5D9A, 4),
     (0x5DBE, 4), (0x5DCA, 4), (0x5DE2, 4),
-    (0x5E26, 4), (0x72AC, 4), (0x7330, 2), (0xCAC8, 4),
+    (0x5E26, 4), (0x5E96, 4), (0x5EA2, 4), (0x5EB4, 4),
+    (0x5F24, 4), (0x5F2A, 4),
+    (0x72AC, 4), (0x7330, 2), (0xCAC8, 4),
 )
 
 
@@ -34,8 +38,8 @@ def merge(original, overlay):
     if not extension or overlay.keys() != hooks | extension:
         raise ValueError("overlay must cover the declared hooks and its own extension")
     end = max(extension) + 1
-    if end % 2 or end > PIC_PROGRAM_END or extension != set(range(EXTENSION_START, end)):
-        raise ValueError("extension must be contiguous, word-aligned and within PIC program space")
+    if end % 2 or end > APPLICATION_END or extension != set(range(EXTENSION_START, end)):
+        raise ValueError("extension must be contiguous, word-aligned and within the existing application rows")
     return original | overlay
 
 

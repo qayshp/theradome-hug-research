@@ -3,7 +3,7 @@ import argparse
 from itertools import product
 from pathlib import Path
 
-from tools.build_volume_settings import APPLICATION_START, EXTENSION_START, HOOKS, archive_layout
+from tools.build_volume_settings import APPLICATION_END, APPLICATION_START, HOOKS, archive_layout
 from tools.rebuild import ORIGINAL, load_hex
 from voice_check import Runner, Voice
 
@@ -26,7 +26,7 @@ class Trace(Runner):
         self.speech = []
         self.eeprom_busy_reads = 0
         self.ram[0xFF2] = 0x80
-        self.ram[0x2A0] = gain  # set by the subsystem check before ready or automatic speech
+        self.ram[0x2A0] = gain  # set by the subsystem check before ordinary speech
 
     def read(self, address):
         if address == 0xF7F and self.eeprom_busy_reads:
@@ -81,6 +81,38 @@ class Trace(Runner):
     def press(self, mode, event):
         self.ram[0xF3], self.w = event, mode
         self.run(0x7082)
+
+
+class PromptTrace(Trace):
+    """Capture speech arguments while running the stock counted-message logic."""
+
+    def __init__(self, image, mode, index, gain, audio_enabled, completed=0):
+        super().__init__(image, dict(enumerate(completed.to_bytes(2, "little"))),
+                         mode=mode, index=index, gain=gain)
+        self.ram[0x27C] = 4 if audio_enabled else 0
+        self.player_registers = []
+
+    def peripheral(self, pc):
+        if pc == 0xD3F8 and self.pair(0x66) == 0:
+            self.reads.append(0)
+            low, high = self.eeprom[0], self.eeprom[1]
+            self.putpair(0x66, low | high << 8)
+            self.w, self.bank = high, 2
+            return True
+        if pc == 0xD6CE and self.pair(0xC0) == 0:
+            self.write_word(0, self.pair(0xC2))
+            self.w, self.bank = self.ram[0xC3], 0
+            return True
+        if pc != 0x94F2:
+            return super().peripheral(pc)
+        self.speech.append(("clip", self.pair(0x81), self.ram[0x2B9]))
+        self.player_registers.append((self.w, self.bank, self.status))
+        if not self.ram[0x27C] & 4:
+            return False  # execute the player's disabled-audio return
+        Runner.peripheral(self, pc)
+        # Exercise preservation of the result registers at the playback boundary.
+        self.w, self.bank, self.status = 0xA6, 1, 5
+        return True
 
 
 def linear(image):
@@ -169,39 +201,74 @@ def check_holds(original, candidate):
     return count
 
 
+def check_prompt_result(stock, patched, sequence, gain, expected):
+    assert stock.speech == [(kind, value, gain) for kind, value in sequence]
+    assert patched.speech == [(kind, value, expected) for kind, value in sequence]
+    assert patched.player_registers == stock.player_registers
+    assert patched.ram == stock.ram
+    assert (patched.w, patched.bank, patched.status) == (stock.w, stock.bank, stock.status)
+    assert patched.reads == stock.reads and patched.writes == stock.writes
+    assert patched.eeprom == stock.eeprom
+
+
 def check_ready_prompts(original, candidate):
-    class ReadyTrace(Trace):
-        def __init__(self, image, index, gain, audio_enabled):
-            super().__init__(image, {}, mode=4, index=index, gain=gain)
-            self.ram[0x27C] = 4 if audio_enabled else 0
-            self.clip_calls = []
-
-        def peripheral(self, pc):
-            if pc != 0x94F2:
-                return super().peripheral(pc)
-            self.clip_calls.append((self.pair(0x81), self.ram[0x2B9], self.w, self.bank, self.status))
-            if not self.ram[0x27C] & 4:
-                return False  # execute the player's disabled-audio return
-            super().peripheral(pc)
-            # Exercise preservation of the result registers at the playback boundary.
-            self.w, self.bank, self.status = 0xA6, 1, 5
-            return True
-
     # The three clips are split between the first two waiting-for-treatment passes.
     paths = ((0x5DB6, (0x2E, 0x27)), (0x5DDA, (0x20,)))
     count = 0
     for (address, clips), index, gain, enabled in product(paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
-        stock = ReadyTrace(original, index, gain, enabled)
-        patched = ReadyTrace(candidate, index, gain, enabled)
+        stock = PromptTrace(original, 4, index, gain, enabled)
+        patched = PromptTrace(candidate, 4, index, gain, enabled)
         for pic in (stock, patched):
             pic.run(address, 0x5DCE)
         expected = GAINS[index] if index < len(GAINS) else gain
-        assert [call[:2] for call in stock.clip_calls] == [(clip, gain) for clip in clips]
-        assert [call[:2] for call in patched.clip_calls] == [(clip, expected) for clip in clips]
-        assert [call[2:] for call in patched.clip_calls] == [call[2:] for call in stock.clip_calls]
-        assert patched.ram == stock.ram
-        assert (patched.w, patched.bank, patched.status) == (stock.w, stock.bank, stock.status)
+        check_prompt_result(stock, patched, [("clip", clip) for clip in clips], gain, expected)
         assert not patched.reads and not patched.writes
+        count += 1
+    return count
+
+
+def check_pause_prompts(original, candidate):
+    paths = ((0x5EAC, 0x5D4C, (0x20,)), (0x5E8E, 0x5DAE, (0x27, 0x2A)))
+    count = 0
+    for (address, stop, clips), index, gain, enabled in product(
+            paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
+        stock = PromptTrace(original, 8, index, gain, enabled)
+        patched = PromptTrace(candidate, 8, index, gain, enabled)
+        for pic in (stock, patched):
+            pic.bank = 2
+            pic.run(address, stop)
+        expected = GAINS[index] if index < len(GAINS) else gain
+        check_prompt_result(stock, patched, [("clip", clip) for clip in clips], gain, expected)
+        assert not patched.reads and not patched.writes
+        count += 1
+    return count
+
+
+def check_count_prompts(original, candidate):
+    # Enter after the readiness check or after completion logging and shutdown.
+    paths = ((0x5D84, 0x5D9E, 4, 0x24), (0x5F14, 0x5F2E, 0x0C, 0x23))
+    count = 0
+    for (address, stop, mode, phrase), variant, index, gain, enabled, completed in product(
+            paths, (0, 2), (0, 1, 2, 3, 4, 255), GAINS, (False, True), (0, 12, 255, 65535)):
+        stock = PromptTrace(original, mode, index, gain, enabled, completed)
+        patched = PromptTrace(candidate, mode, index, gain, enabled, completed)
+        for pic in (stock, patched):
+            pic.ram[0x2B8] = variant
+            pic.bank = 2
+            pic.run(address, stop)
+        number = 0 if completed == 65535 else completed
+        if phrase == 0x24:
+            number += 1
+        sequence = [("clip", 0x27), ("number", number), ("clip", phrase)]
+        if variant == 2:
+            if phrase == 0x24:
+                sequence.append(("clip", 0x35))
+            else:
+                sequence.insert(0, ("clip", 0x34))
+        expected = GAINS[index] if index < len(GAINS) else gain
+        check_prompt_result(stock, patched, sequence, gain, expected)
+        assert patched.reads == [0]
+        assert patched.writes == ([(0, 0), (1, 0)] if completed == 65535 else [])
         count += 1
     return count
 
@@ -211,12 +278,11 @@ def main():
     parser.add_argument("image", type=Path)
     args = parser.parse_args()
     original, candidate = load_hex(ORIGINAL), load_hex(args.image)
-    assert candidate.keys() == set(range(APPLICATION_START, max(candidate) + 1))
+    assert candidate.keys() == set(range(APPLICATION_START, APPLICATION_END))
     hooks = {a for start, size in HOOKS for a in range(start, start + size)}
     changed = {a for a in original if original[a] != candidate[a]}
     assert changed <= hooks
     assert all(changed.intersection(range(start, start + size)) for start, size in HOOKS)
-    assert max(candidate) > EXTENSION_START
     assert archive_layout(candidate) == args.image.read_bytes()
     before, after = linear(original), linear(candidate)
     checks = [
@@ -225,6 +291,8 @@ def main():
         ("countdown and timing", check_announcements(before, after)),
         ("long press", check_holds(before, after)),
         ("ready prompt", check_ready_prompts(before, after)),
+        ("pause reminder and resume prompts", check_pause_prompts(before, after)),
+        ("numbered treatment start and completion prompts", check_count_prompts(before, after)),
     ]
     for name, count in checks:
         print(f"{name}: {count} passed")

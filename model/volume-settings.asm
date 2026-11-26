@@ -9,6 +9,8 @@ button_feedback         equ     0x74DC
 countdown_report        equ     0xCA60
 countdown_speech_tail   equ     0xCACC
 play_clip               equ     0x94F2
+treatment_count         equ     0xCC56
+count_phrase_argument   equ     0x0D4
 clip_number             equ     0x081
 wreg_address            equ     0xFE8
 volume_index            equ     0x044
@@ -23,16 +25,36 @@ eeadrh_access           equ     0x63
         org     0x5358
         call    volume_startup, 0
 
+; The treatment start uses a numbered message and an optional variant clip.
+        org     0x5D86
+        call    volume_count_prompt, 0
+        org     0x5D9A
+        call    volume_prompt_clip, 0
+
 ; The routine ready prompt uses two clips on the first pass and one on the next.
         org     0x5DBE
-        call    volume_ready_clip, 0
+        call    volume_prompt_clip, 0
         org     0x5DCA
-        call    volume_ready_clip, 0
+        call    volume_prompt_clip, 0
         org     0x5DE2
-        call    volume_ready_clip, 0
+        call    volume_prompt_clip, 0
 
         org     0x5E26
         call    volume_auto_report, 0
+
+; The two resume clips and the paused-state reminder follow the shared check.
+        org     0x5E96
+        call    volume_prompt_clip, 0
+        org     0x5EA2
+        call    volume_prompt_clip, 0
+        org     0x5EB4
+        call    volume_prompt_clip, 0
+
+; Normal completion follows the stock log and counter update.
+        org     0x5F24
+        call    volume_prompt_clip, 0
+        org     0x5F2A
+        call    volume_count_prompt, 0
 
         org     0x72AC
         goto    volume_cycle
@@ -133,13 +155,23 @@ volume_store_gain:
         movwf   0xB9, 1
         return  0
 
-volume_ready_clip:
-; The preceding ready-state check has saved the incoming gain at this address.
+volume_prompt_clip:
+; The stock foreground check also uses this location to save the gain.
         movff   live_gain, saved_auto_gain
         rcall   volume_apply
         movlb   0
         movff   clip_number, wreg_address
         call    play_clip, 0
+volume_prompt_restore:
         movff   saved_auto_gain, live_gain
         return  0
+
+volume_count_prompt:
+; The first stock instruction at treatment_count copies WREG to this same byte.
+        movff   live_gain, saved_auto_gain
+        movff   wreg_address, count_phrase_argument
+        rcall   volume_apply
+        movff   count_phrase_argument, wreg_address
+        call    treatment_count, 0
+        bra     volume_prompt_restore
         end

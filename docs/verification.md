@@ -33,7 +33,7 @@ At 3.60 V or higher, all 22 current readings fell within 10.43–10.51 mA. The 2
 
 [Stock rebuild and hashes](../model/rebuild.md) · [Voice test harness and original audio behavior](../model/volume.md)
 
-A later experiment extended the fix to restore the selected volume at startup and apply it to automatic countdowns. That version passed 1,136 offline cases and was installed on the test LH40. The current overlay adds the ready-prompt change and passes 1,232 offline cases. [Persistent volume and announcements](volume-settings.md)
+A later experiment extended the fix to restore the selected volume at startup and apply it to automatic countdowns. That version passed 1,136 offline cases and was installed on the test LH40. The current overlay applies the selected volume to the ready prompt, the pause reminder, resume, start and successful completion. It passed 2,096 instruction-level comparisons in total. HUG reported a successful transfer of the expanded image, and the application answered at revision `126.6` in a fresh read-only USB session. Physical playback of the newly changed prompts remains unverified. [Persistent volume and announcements](volume-settings.md) · [Expanded update](volume-settings.md#expanded-treatment-prompt-update)
 
 ## Backup and recovery
 
