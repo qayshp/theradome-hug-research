@@ -76,6 +76,28 @@ def compare(reference, output, binary):
     return 0
 
 
+def report_diff(reference, output):
+    stock, candidate = load_hex(reference), load_hex(output)
+    common = stock.keys() & candidate.keys()
+    differences = {
+        "Changed": {address for address in common if stock[address] != candidate[address]},
+        "Added": candidate.keys() - stock.keys(),
+        "Missing": stock.keys() - candidate.keys(),
+    }
+    for label, addresses in differences.items():
+        print(f"{label} bytes: {len(addresses):,}")
+        if not addresses:
+            continue
+        ordered = sorted(addresses)
+        first = last = ordered[0]
+        for address in ordered[1:]:
+            if address != last + 1:
+                print(f"  0x{first:04X}..0x{last:04X}")
+                first = address
+            last = address
+        print(f"  0x{first:04X}..0x{last:04X}")
+
+
 def generate(disassembler, reference, output):
     # Chip selection fixes the standard instruction vocabulary. Keep hardware
     # registers numeric so assigning a peripheral name requires separate evidence.
@@ -163,6 +185,8 @@ def main():
     verifier = commands.add_parser("verify")
     verifier.add_argument("image", type=Path)
     verifier.add_argument("--binary", type=Path, help="also compare the raw bytes in address order")
+    differ = commands.add_parser("diff", help="report changed, added and missing ranges against the stock HEX")
+    differ.add_argument("image", type=Path)
     extractor = commands.add_parser("extract", help="write the raw contiguous application bytes")
     extractor.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -171,6 +195,9 @@ def main():
         return 0
     if args.command == "extract":
         args.output.write_bytes(contiguous_bytes(load_hex(ORIGINAL)))
+        return 0
+    if args.command == "diff":
+        report_diff(ORIGINAL, args.image)
         return 0
     return compare(ORIGINAL, args.image, args.binary)
 

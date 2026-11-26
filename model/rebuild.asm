@@ -4,11 +4,11 @@
         processor 18f66k22
         radix hex
         org 0x1900
-app_reset:
+app_reset: ; Application reset vector handed off by the separate bootloader.
         goto    loc_1A44                    ; 1900
         dw      0xffff                      ; 1904
         dw      0xffff                      ; 1906
-app_high_interrupt:
+app_high_interrupt: ; Relocated high-priority interrupt vector.
         goto    loc_8418                    ; 1908
         dw      0xffff                      ; 190C
         dw      0xffff                      ; 190E
@@ -16,7 +16,7 @@ app_high_interrupt:
         dw      0xffff                      ; 1912
         dw      0xffff                      ; 1914
         dw      0xffff                      ; 1916
-app_low_interrupt:
+app_low_interrupt: ; Relocated low-priority interrupt entry. Saves STATUS, WREG and BSR.
         movff   0xfd8, 0x002                ; 1918
         movff   0xfe8, 0x003                ; 191C
         movff   0xfe0, 0x004                ; 1920
@@ -31,7 +31,7 @@ loc_192C:
         bra     loc_1934                    ; 1930
 loc_1932:
         bra     loc_1942                    ; 1932
-loc_1934:
+loc_1934: ; PORTB change service. Latches a charge-status event for the foreground.
         movf    0x81, 0x0, 0x0              ; 1934
         movf    0x81, 0x0, 0x0              ; 1936
         bcf     0xf2, 0x0, 0x0              ; 1938
@@ -51,7 +51,7 @@ loc_194A:
         bra     loc_1952                    ; 194E
 loc_1950:
         bra     loc_197E                    ; 1950
-loc_1952:
+loc_1952: ; Timer service decrements the two software counters when nonzero.
         bcf     0x9e, 0x0, 0x0              ; 1952
         movlb   0x2                         ; 1954
         movf    0x70, 0x0, 0x1              ; 1956
@@ -212,7 +212,7 @@ loc_1A36:
         movff   0x003, 0xfe8                ; 1A3A
         movff   0x002, 0xfd8                ; 1A3E
         retfie  0x0                         ; 1A42
-loc_1A44:
+loc_1A44: ; Reset trampoline into the compiler startup code.
         goto    loc_CD42                    ; 1A44
         dw      0x0010                      ; 1A48
         dw      0x0011                      ; 1A4A
@@ -1487,7 +1487,7 @@ loc_1A44:
         dw      0x2e00                      ; 2434
         dw      0x5600                      ; 2436
         dw      0x0000                      ; 2438
-loc_243A:
+loc_243A: ; Board Test entry. Requests the two-channel steady indicator.
         movlw   0x0f                        ; 243A
         call    loc_9FD2, 0x0               ; 243C
         movlw   0x00                        ; 2440
@@ -1564,7 +1564,7 @@ loc_2456:
         movlw   0x0d                        ; 24EE
         call    loc_DC1E, 0x0               ; 24F0
         goto    loc_5054                    ; 24F4
-loc_24F8:
+loc_24F8: ; Board Test path writes persistent manufacturing flags.
         movlb   0x0                         ; 24F8
         clrf    0xc1, 0x1                   ; 24FA
         movlw   0x1f                        ; 24FC
@@ -2636,7 +2636,7 @@ loc_2FC6:
         movlw   0x00                        ; 2FE0
         call    loc_D1B0, 0x0               ; 2FE2
         goto    loc_5122                    ; 2FE6
-loc_2FEA:
+loc_2FEA: ; Read and display selected EEPROM parameters.
         movlb   0x3                         ; 2FEA
         clrf    0x45, 0x1                   ; 2FEC
 loc_2FEE:
@@ -4579,7 +4579,7 @@ loc_424A:
         movwf   0x7e, 0x1                   ; 4254
         call    loc_CDB6, 0x0               ; 4256
         goto    loc_5122                    ; 425A
-loc_425E:
+loc_425E: ; Application-side programming handoff checks the current battery reading.
         movlw   0x00                        ; 425E
         movlb   0x0                         ; 4260
         clrf    0xd9, 0x1                   ; 4262
@@ -4621,7 +4621,7 @@ loc_42AC:
         movwf   0x7e, 0x1                   ; 42B4
         call    loc_CDB6, 0x0               ; 42B6
         goto    loc_5122                    ; 42BA
-loc_42BE:
+loc_42BE: ; Accepted handoff acknowledges the host and resets the controller.
         movlw   0x24                        ; 42BE
         movwf   0x7f, 0x1                   ; 42C0
         movlw   0x14                        ; 42C2
@@ -6060,7 +6060,7 @@ loc_504E:
         movlw   0x0b                        ; 504E
         movwf   0xb4, 0x1                   ; 5050
         bra     loc_5122                    ; 5052
-loc_5054:
+loc_5054: ; Board Test command dispatcher.
         movf    0xbb, 0x0, 0x1              ; 5054
         xorlw   0x05                        ; 5056
         bnz     loc_505E                    ; 5058
@@ -6163,7 +6163,7 @@ loc_511A:
         xorlw   0x07                        ; 511A
         bnz     loc_5122                    ; 511C
         goto    loc_3D4E                    ; 511E
-loc_5122:
+loc_5122: ; Board Test waits for a button, serial input or changing charger conditions.
         movlw   0x01                        ; 5122
         call    loc_D9F8, 0x0               ; 5124
         movlw   0x01                        ; 5128
@@ -6404,7 +6404,7 @@ loc_5300:
         movf    0xad, 0x0, 0x1              ; 5308
         xorlw   0x02                        ; 530A
         return  0x0                         ; 530C
-loc_530E:
+loc_530E: ; Initialize the application after the compiler RAM prologue.
         movlb   0x0                         ; 530E
         clrf    0xee, 0x1                   ; 5310
         movlw   0x3c                        ; 5312
@@ -6615,7 +6615,7 @@ loc_5502:
         btfsc   0xd8, 0x2, 0x0              ; 5510
         xorwf   0x66, 0x0, 0x1              ; 5512
         bz      loc_551C                    ; 5514
-loc_5516:
+loc_5516: ; Dispatch for foreground mode handlers.
         movlw   0x18                        ; 5516
         goto    loc_5F8C                    ; 5518
 loc_551C:
@@ -6788,7 +6788,7 @@ loc_568E:
 loc_569A:
         call    loc_DEB6, 0x0               ; 569A
         bra     loc_5516                    ; 569E
-loc_56A0:
+loc_56A0: ; Checks the stored calibration-complete word.
         movlb   0x0                         ; 56A0
         clrf    0x67, 0x1                   ; 56A2
         movlw   0x1d                        ; 56A4
@@ -6986,7 +6986,7 @@ loc_5840:
         call    write_eeprom_word, 0x0      ; 5856
         bcf     0x93, 0x5, 0x0              ; 585A
         bra     loc_6056                    ; 585C
-loc_585E:
+loc_585E: ; Waiting-for-calibration path checks charger inputs.
         btfss   0x81, 0x4, 0x0              ; 585E
         bra     loc_5866                    ; 5860
         btfsc   0x80, 0x4, 0x0              ; 5862
@@ -7019,7 +7019,7 @@ loc_5882:
         movwf   0x81, 0x1                   ; 589A
         call    loc_94F2, 0x0               ; 589C
         bra     loc_5516                    ; 58A0
-loc_58A2:
+loc_58A2: ; Battery calibration gate checks the charged-input pattern.
         btfss   0x80, 0x4, 0x0              ; 58A2
         btfss   0x81, 0x4, 0x0              ; 58A4
         bra     loc_6056                    ; 58A6
@@ -7403,7 +7403,7 @@ loc_5C8A:
         movlw   0x18                        ; 5CB2
         movlb   0x2                         ; 5CB4
         movwf   0xb4, 0x1                   ; 5CB6
-loc_5CB8:
+loc_5CB8: ; Calibration completion path announces the result and handles the completion marker.
         call    loc_655C, 0x0               ; 5CB8
         call    loc_BF0E, 0x0               ; 5CBC
         movlb   0x2                         ; 5CC0
@@ -7481,7 +7481,7 @@ loc_5D52:
         movlw   0x03                        ; 5D58
         call    loc_D1B0, 0x0               ; 5D5A
         bra     loc_6056                    ; 5D5E
-loc_5D60:
+loc_5D60: ; Ready-state processing. A qualified start can enter active treatment.
         movlw   0x01                        ; 5D60
         call    loc_D358, 0x0               ; 5D62
         bnc     loc_5D72                    ; 5D66
@@ -7552,7 +7552,7 @@ loc_5DE8:
         rcall   loc_65D2                    ; 5DE8
         call    loc_C5B8, 0x0               ; 5DEA
         bra     loc_6056                    ; 5DEE
-loc_5DF0:
+loc_5DF0: ; Active treatment processing and automatic remaining-time checks.
         movlw   0x00                        ; 5DF0
         call    loc_D358, 0x0               ; 5DF2
         bnc     loc_5E08                    ; 5DF6
@@ -7613,7 +7613,7 @@ loc_5E64:
         rcall   loc_65D2                    ; 5E64
         call    loc_C5B8, 0x0               ; 5E66
         bra     loc_6056                    ; 5E6A
-loc_5E6C:
+loc_5E6C: ; Paused treatment processing.
         movlw   0x01                        ; 5E6C
         call    loc_D358, 0x0               ; 5E6E
         bnc     loc_5E7C                    ; 5E72
@@ -7666,7 +7666,7 @@ loc_5ED6:
         movlw   0x08                        ; 5ED6
         call    loc_D892, 0x0               ; 5ED8
         bra     loc_5D6E                    ; 5EDC
-loc_5EDE:
+loc_5EDE: ; Normal completion handler saves the treatment record.
         movlw   0x00                        ; 5EDE
         call    loc_9C4C, 0x0               ; 5EE0
         movlw   0x00                        ; 5EE4
@@ -7852,7 +7852,7 @@ loc_6046:
         xorlw   0x01                        ; 604E
         bz      loc_5FB2                    ; 6050
         goto    loc_5550                    ; 6052
-loc_6056:
+loc_6056: ; Foreground convergence point processes latched events and mode requests.
         movlb   0x2                         ; 6056
         btfss   0x7b, 0x7, 0x1              ; 6058
         bra     loc_6062                    ; 605A
@@ -7945,7 +7945,7 @@ loc_610C:
         xorwf   0xb5, 0x0, 0x1              ; 6110
         bnz     loc_6116                    ; 6112
         bra     loc_6504                    ; 6114
-loc_6116:
+loc_6116: ; Commits the next operating state and dispatches its entry and indicator.
         movff   0x2b4, 0x2b5                ; 6116
         movf    0xb5, 0x0, 0x1              ; 611A
         call    loc_9FD2, 0x0               ; 611C
@@ -8023,7 +8023,7 @@ loc_619E:
         call    loc_C5B8, 0x0               ; 61D0
         bsf     0x93, 0x5, 0x0              ; 61D4
         bra     loc_6504                    ; 61D6
-loc_61D8:
+loc_61D8: ; Entry to the calibration-ready state.
         movlw   0x01                        ; 61D8
         call    loc_C8DE, 0x0               ; 61DA
         movlw   0x02                        ; 61DE
@@ -8072,7 +8072,7 @@ loc_621A:
         movlw   0x00                        ; 6254
         call    loc_D1B0, 0x0               ; 6256
         bra     loc_6504                    ; 625A
-loc_625C:
+loc_625C: ; Ready-for-treatment state entry.
         movlw   0x01                        ; 625C
         call    loc_C8DE, 0x0               ; 625E
         movlw   0x01                        ; 6262
@@ -8097,7 +8097,7 @@ loc_625C:
         rcall   loc_6600                    ; 6294
         call    loc_C5B8, 0x0               ; 6296
         bra     loc_6504                    ; 629A
-loc_629C:
+loc_629C: ; Active-treatment state entry.
         movlw   0x01                        ; 629C
         call    loc_C8DE, 0x0               ; 629E
         movlw   0x02                        ; 62A2
@@ -8110,7 +8110,7 @@ loc_629C:
         bcf     0x7b, 0x5, 0x1              ; 62B6
         bcf     0x7b, 0x4, 0x1              ; 62B8
         bra     loc_6504                    ; 62BA
-loc_62BC:
+loc_62BC: ; Paused-treatment state entry.
         movlw   0x01                        ; 62BC
         call    loc_C8DE, 0x0               ; 62BE
         movlw   0x01                        ; 62C2
@@ -8214,7 +8214,7 @@ loc_63A2:
         call    loc_DD94, 0x0               ; 63B8
         call    loc_DF78, 0x0               ; 63BC
         bra     loc_6504                    ; 63C0
-loc_63C2:
+loc_63C2: ; Charging-fade state entry.
         movlw   0x01                        ; 63C2
         call    loc_C8DE, 0x0               ; 63C4
         movlw   0x03                        ; 63C8
@@ -8227,7 +8227,7 @@ loc_63C2:
         movf    0xaf, 0x0, 0x1              ; 63DC
         call    loc_A954, 0x0               ; 63DE
         bra     loc_6504                    ; 63E2
-loc_63E4:
+loc_63E4: ; Charge-complete state entry.
         movlw   0x0a                        ; 63E4
         call    loc_D892, 0x0               ; 63E6
         movlw   0x01                        ; 63EA
@@ -8419,7 +8419,7 @@ loc_653E:
 loc_6558:
         sleep                               ; 6558
         bra     loc_5FD4                    ; 655A
-loc_655C:
+loc_655C: ; Load a three-byte constant used by several control paths.
         movlb   0x0                         ; 655C
         clrf    0xc0, 0x1                   ; 655E
         movlw   0x98                        ; 6560
@@ -8453,7 +8453,7 @@ loc_6594:
         movlw   0xc3                        ; 65A6
         movwf   0x7d, 0x1                   ; 65A8
         retlw   0xc3                        ; 65AA
-loc_65AC:
+loc_65AC: ; Tests a data EEPROM word against the A5A5 marker.
         movlb   0x0                         ; 65AC
         movf    0x67, 0x0, 0x1              ; 65AE
         xorlw   0xa5                        ; 65B0
@@ -9711,7 +9711,7 @@ loc_707A:
         xorlw   0x80                        ; 707C
         addlw   0x80                        ; 707E
         retlw   0x02                        ; 7080
-loc_7082:
+loc_7082: ; Button-event handler dispatches according to operating state.
         movff   0xfe8, 0x0ea                ; 7082
         bra     loc_708A                    ; 7086
 loc_7088:
@@ -9730,7 +9730,7 @@ loc_708A:
         xorlw   0x03                        ; 709E
         bz      loc_70A4                    ; 70A0
         bra     loc_7478                    ; 70A2
-loc_70A4:
+loc_70A4: ; Temporarily use full speech gain for ordinary press and hold events.
         movff   0x2b9, 0x0e9                ; 70A4
         movlb   0x2                         ; 70A8
         clrf    0xb9, 0x1                   ; 70AA
@@ -9983,7 +9983,7 @@ loc_725E:
 loc_72A8:
         reset                               ; 72A8
         dw      0xd118                      ; 72AA
-loc_72AC:
+loc_72AC: ; Advance the selected volume index through four levels.
         incf    0x44, 0x1, 0x0              ; 72AC
         movlw   0x03                        ; 72AE
         cpfsgt  0x44, 0x0                   ; 72B0
@@ -10037,7 +10037,7 @@ loc_72EA:
         movf    0xac, 0x0, 0x1              ; 7318
         call    loc_CF02, 0x0               ; 731A
         bra     loc_74DC                    ; 731E
-loc_7320:
+loc_7320: ; Idle button actions. The stock hold path can clear the selected index.
         movf    0xf3, 0x0, 0x1              ; 7320
         xorlw   0x05                        ; 7322
         bz      loc_72AC                    ; 7324
@@ -10173,7 +10173,7 @@ loc_7426:
         movlw   0x23                        ; 7426
         call    loc_CC56, 0x0               ; 7428
         bra     loc_74DC                    ; 742C
-loc_742E:
+loc_742E: ; Speak the application and loader revisions, then open the receive window.
         call    loc_D038, 0x0               ; 742E
         movlw   0x00                        ; 7432
         movlb   0x0                         ; 7434
@@ -10274,7 +10274,7 @@ loc_74D4:
         bra     loc_73C2                    ; 74D8
 loc_74DA:
         bra     loc_7466                    ; 74DA
-loc_74DC:
+loc_74DC: ; Shared button completion and volume feedback path.
         movlb   0x0                         ; 74DC
         movf    0xf3, 0x0, 0x1              ; 74DE
         xorlw   0x05                        ; 74E0
@@ -10283,7 +10283,7 @@ loc_74DC:
         xorlw   0x11                        ; 74E6
         bnz     loc_7502                    ; 74E8
         bra     loc_7520                    ; 74EA
-loc_74EC:
+loc_74EC: ; Translate the selected volume index into a sample right-shift count.
         movlb   0x2                         ; 74EC
         clrf    0xb9, 0x1                   ; 74EE
         bra     loc_7512                    ; 74F0
@@ -10332,7 +10332,7 @@ loc_7534:
         setf    0xc3, 0x1                   ; 753A
         setf    0xc2, 0x1                   ; 753C
         retlw   0xff                        ; 753E
-loc_7540:
+loc_7540: ; Indicator request sets pattern and channel selection.
         movff   0xfe8, 0x0c7                ; 7540
         movf    0xc7, 0x0, 0x1              ; 7544
         movlb   0x2                         ; 7546
@@ -10565,7 +10565,7 @@ loc_76FA:
         clrf    0x43, 0x1                   ; 76FC
         clrf    0x46, 0x1                   ; 76FE
         return  0x0                         ; 7700
-loc_7702:
+loc_7702: ; Advance the charging-fade phase.
         btfss   0x4f, 0x2, 0x0              ; 7702
         bra     loc_7734                    ; 7704
         movlw   0x02                        ; 7706
@@ -10654,7 +10654,7 @@ loc_77AC:
         movlb   0xf                         ; 77F2
         movwf   0x44, 0x1                   ; 77F4
         return  0x0                         ; 77F6
-loc_77F8:
+loc_77F8: ; Compute the two-channel charge indicator from battery voltage and fade phase.
         rcall   loc_7966                    ; 77F8
         call    loc_DB9A, 0x0               ; 77FA
         movff   0x072, 0x2f6                ; 77FE
@@ -10697,7 +10697,7 @@ loc_77F8:
         movwf   0xf7, 0x1                   ; 786C
         movlw   0x3f                        ; 786E
         movwf   0xf8, 0x1                   ; 7870
-loc_7872:
+loc_7872: ; Charging-timeout handler checks charging state before issuing an alert.
         movff   0x2f6, 0x0a3                ; 7872
         movff   0x2f7, 0x0a4                ; 7876
         movff   0x2f8, 0x0a5                ; 787A
@@ -11231,7 +11231,7 @@ loc_7990:
         movwf   0x66, 0x1                   ; 7D44
         movlw   0x0d                        ; 7D46
         goto    loc_DC1E                    ; 7D48
-loc_7D4C:
+loc_7D4C: ; Acquire and convert the temperature-related ADC reading.
         movff   0xfe8, 0x0dd                ; 7D4C
         bsf     0x8d, 0x1, 0x0              ; 7D50
         movlb   0x0                         ; 7D52
@@ -11538,7 +11538,7 @@ loc_80A2:
         movff   0x2dd, 0x07c                ; 80B0
         movff   0x2de, 0x07d                ; 80B4
         retlw   0x3f                        ; 80B8
-loc_80BA:
+loc_80BA: ; Status speech path saves and temporarily clears the live attenuation.
         bsf     0x4d, 0x4, 0x0              ; 80BA
         movlb   0x2                         ; 80BC
         clrf    0xa1, 0x1                   ; 80BE
@@ -11948,7 +11948,7 @@ loc_840A:
         movlw   0x41                        ; 8412
         movwf   0xc2, 0x1                   ; 8414
         retlw   0x41                        ; 8416
-loc_8418:
+loc_8418: ; High-priority interrupt dispatch, including the master-switch recognizer.
         btfss   0x9e, 0x1, 0x0              ; 8418
         bra     loc_841E                    ; 841A
         bra     loc_8420                    ; 841C
@@ -12017,7 +12017,7 @@ loc_846E:
         movlb   0x2                         ; 8474
         bsf     0x7c, 0x1, 0x1              ; 8476
         bra     loc_8768                    ; 8478
-loc_847A:
+loc_847A: ; First switch-edge interrupt arms the timing and release-edge window.
         btfss   0xf0, 0x1, 0x0              ; 847A
         bra     loc_8480                    ; 847C
         bra     loc_8482                    ; 847E
@@ -12050,7 +12050,7 @@ loc_848A:
         movlb   0x0                         ; 84AC
         bcf     0x4f, 0x1, 0x0              ; 84AE
         bra     loc_8768                    ; 84B0
-loc_84B2:
+loc_84B2: ; Release-edge interrupt advances short-press recognition.
         btfss   0xf0, 0x2, 0x0              ; 84B2
         bra     loc_84B8                    ; 84B4
         bra     loc_84BA                    ; 84B6
@@ -12107,7 +12107,7 @@ loc_8504:
         movlb   0x0                         ; 8506
         movwf   0xf3, 0x1                   ; 8508
         bra     loc_8768                    ; 850A
-loc_850C:
+loc_850C: ; Switch timer expiry resolves pending gesture events.
         btfss   0xa1, 0x1, 0x0              ; 850C
         bra     loc_8512                    ; 850E
         bra     loc_8514                    ; 8510
@@ -13011,7 +13011,7 @@ loc_8CE2:
         incf    0xe0, 0x1, 0x1              ; 8CEE
         movf    0xdf, 0x0, 0x0              ; 8CF0
         return  0x0                         ; 8CF2
-loc_8CF4:
+loc_8CF4: ; Write a completed-treatment record and timestamp to the history ring.
         movff   0x0c4, 0x066                ; 8CF4
         movff   0x0c5, 0x067                ; 8CF8
         clrf    0x69, 0x1                   ; 8CFC
@@ -13215,7 +13215,7 @@ loc_8F1A:
         clrf    0xc8, 0x1                   ; 8F1C
         clrf    0xc9, 0x1                   ; 8F1E
         clrf    0xa3, 0x1                   ; 8F20
-loc_8F22:
+loc_8F22: ; Acquire and convert the single laser-current feedback reading.
         movlw   0x0f                        ; 8F22
         movwf   0xb6, 0x1                   ; 8F24
         movlw   0x08                        ; 8F26
@@ -13642,7 +13642,7 @@ loc_92F6:
         movff   0x247, 0x0c8                ; 92F6
         movff   0x248, 0x0c9                ; 92FA
         goto    loc_A4C0                    ; 92FE
-loc_9302:
+loc_9302: ; Battery measurement and calibration correction.
         movff   0xfe8, 0x0da                ; 9302
         bcf     0x8d, 0x2, 0x0              ; 9306
         movlb   0x0                         ; 9308
@@ -13821,7 +13821,7 @@ loc_94DC:
         movlb   0x0                         ; 94EC
         clrf    0x7b, 0x1                   ; 94EE
         return  0x0                         ; 94F0
-loc_94F2:
+loc_94F2: ; Play a numbered voice clip if audio is enabled.
         movlb   0x2                         ; 94F2
         btfss   0x7c, 0x2, 0x1              ; 94F4
         return  0x0                         ; 94F6
@@ -13898,7 +13898,7 @@ loc_9584:
         clrf    0x18, 0x1                   ; 9590
         clrf    0x19, 0x1                   ; 9592
         bra     loc_95FC                    ; 9594
-loc_9596:
+loc_9596: ; Read compressed voice bytes and decode both nibbles with the current gain.
         call    loc_DF36, 0x0               ; 9596
         movwf   0xbd, 0x1                   ; 959A
         movff   0x2b9, 0x083                ; 959C
@@ -14007,7 +14007,7 @@ loc_9662:
 loc_966E:
         bsf     0xf2, 0x7, 0x0              ; 966E
         return  0x0                         ; 9670
-loc_9672:
+loc_9672: ; Convert the decoded sample to a PWM output field.
         movff   0x285, 0x083                ; 9672
         movff   0x286, 0x084                ; 9676
         movlw   0x04                        ; 967A
@@ -14251,7 +14251,7 @@ loc_9894:
         btfss   0x80, 0x4, 0x0              ; 98A0
         bra     loc_971A                    ; 98A2
         return  0x0                         ; 98A4
-loc_98A6:
+loc_98A6: ; Initialize clocks, port registers, timers and interrupt configuration.
         bcf     0xd1, 0x0, 0x0              ; 98A6
         movlb   0xf                         ; 98A8
         clrf    0x25, 0x1                   ; 98AA
@@ -15090,7 +15090,7 @@ loc_9FCA:
         incf    0x6d, 0x1, 0x1              ; 9FCC
         decf    0x78, 0x1, 0x1              ; 9FCE
         return  0x0                         ; 9FD0
-loc_9FD2:
+loc_9FD2: ; Look up an indicator pattern by operating state.
         movff   0xfe8, 0x0c8                ; 9FD2
         bra     loc_A0F0                    ; 9FD6
 loc_9FD8:
@@ -15521,7 +15521,7 @@ loc_A31C:
         movff   0x0d3, 0x0d3                ; A320
         movff   0x0d4, 0x0d4                ; A324
         return  0x0                         ; A328
-loc_A32A:
+loc_A32A: ; Acquire the proximity-related ADC reading.
         movff   0xfe8, 0x0da                ; A32A
         movlw   0x14                        ; A32E
         movlb   0x2                         ; A330
@@ -15671,7 +15671,7 @@ loc_A4BA:
         movlb   0x2                         ; A4BA
         movf    0xb6, 0x0, 0x1              ; A4BC
         return  0x0                         ; A4BE
-loc_A4C0:
+loc_A4C0: ; Render an unsigned number by choosing prerecorded clips.
         movlb   0x0                         ; A4C0
         movlw   0x00                        ; A4C2
         movwf   0x77, 0x1                   ; A4C4
@@ -16788,7 +16788,7 @@ loc_ADAC:
         rrcf    0x62, 0x1, 0x1              ; ADB0
         rrcf    0x61, 0x1, 0x1              ; ADB2
         return  0x0                         ; ADB4
-loc_ADB6:
+loc_ADB6: ; Acquire the internal core-voltage ADC reading and apply its correction.
         movff   0xfe8, 0x0da                ; ADB6
         movlw   0x08                        ; ADBA
         movlb   0x2                         ; ADBC
@@ -16913,7 +16913,7 @@ loc_AF1C:
         movlb   0x2                         ; AF1C
         movf    0xb6, 0x0, 0x1              ; AF1E
         return  0x0                         ; AF20
-loc_AF22:
+loc_AF22: ; Decode one four-bit adaptive differential PCM sample.
         movff   0xfe8, 0x06a                ; AF22
         movff   0x066, 0xfd9                ; AF26
         movff   0x067, 0xfda                ; AF2A
@@ -17074,7 +17074,7 @@ loc_B068:
         rrcf    0x69, 0x1, 0x1              ; B070
         rrcf    0x68, 0x1, 0x1              ; B072
         return  0x0                         ; B074
-loc_B076:
+loc_B076: ; Select an ADC input and reference.
         movff   0xfe8, 0x0d3                ; B076
         bcf     0xf2, 0x7, 0x0              ; B07A
         movff   0x0d3, 0x0cd                ; B07C
@@ -17815,7 +17815,7 @@ loc_B6C0:
         movff   0x03c, 0xfd9                ; B6D0
         movff   0x03d, 0xfda                ; B6D4
         retlw   0x5b                        ; B6D8
-loc_B6DA:
+loc_B6DA: ; Read the addressed voice clip directory entry from serial flash.
         movff   0xfe8, 0x072                ; B6DA
         movlb   0x0                         ; B6DE
         movff   0x072, 0x06a                ; B6E0
@@ -18957,7 +18957,7 @@ loc_C0E8:
         movwf   0x66, 0x1                   ; C0FC
         movlw   0x2f                        ; C0FE
         goto    loc_DC1E                    ; C100
-loc_C104:
+loc_C104: ; Open a serial flash read at the page for a voice clip.
         movf    0x7f, 0x0, 0x1              ; C104
         movlb   0x0                         ; C106
         movwf   0x6a, 0x1                   ; C108
@@ -19208,7 +19208,7 @@ loc_C2DC:
         movff   0x06f, 0x05a                ; C366
         movff   0x070, 0x05b                ; C36A
         return  0x0                         ; C36E
-loc_C370:
+loc_C370: ; Process a charger input change and propose a new operating state.
         bcf     0xf2, 0x7, 0x0              ; C370
         bcf     0x7b, 0x6, 0x1              ; C372
         btfss   0x81, 0x4, 0x0              ; C374
@@ -19488,7 +19488,7 @@ loc_C528:
         movff   0x0b1, 0x0c2                ; C5AC
         movff   0x0b2, 0x0c3                ; C5B0
         goto    write_eeprom_word           ; C5B4
-loc_C5B8:
+loc_C5B8: ; Set or clear the software countdown words according to the selector.
         movff   0xfe8, 0x068                ; C5B8
         bra     loc_C630                    ; C5BC
 loc_C5BE:
@@ -19550,7 +19550,7 @@ loc_C630:
         btfss   0xd8, 0x2, 0x0              ; C642
         return  0x0                         ; C644
         bra     loc_C60E                    ; C646
-loc_C648:
+loc_C648: ; Read one completed-treatment record from the EEPROM ring.
         movff   0x06b, 0x066                ; C648
         movff   0x06c, 0x067                ; C64C
         clrf    0x69, 0x1                   ; C650
@@ -19728,7 +19728,7 @@ loc_C7CC:
         movff   0x0c6, 0x0c2                ; C7CE
         movff   0x0c7, 0x0c3                ; C7D2
         goto    write_eeprom_word           ; C7D6
-loc_C7DA:
+loc_C7DA: ; Load saved alarm settings from data EEPROM.
         movlb   0x0                         ; C7DA
         clrf    0x67, 0x1                   ; C7DC
         movlw   0x2b                        ; C7DE
@@ -19972,7 +19972,7 @@ loc_C9CE:
         bra     loc_C9BC                    ; C9D8
         bsf     0x8c, 0x2, 0x0              ; C9DA
         goto    loc_D5FC                    ; C9DC
-loc_C9E0:
+loc_C9E0: ; Configure the application UART and time the receive window.
         movff   0xfe8, 0x069                ; C9E0
         tstfsz  0x69, 0x1                   ; C9E4
         bra     loc_C9F2                    ; C9E6
@@ -20046,7 +20046,7 @@ loc_CA52:
         movwf   0x68, 0x1                   ; CA5A
         rrcf    0x68, 0x0, 0x1              ; CA5C
         return  0x0                         ; CA5E
-loc_CA60:
+loc_CA60: ; Compute and speak remaining treatment time.
         movff   0xfe8, 0x0d4                ; CA60
         movlw   0x00                        ; CA64
         call    loc_D2B2, 0x0               ; CA66
@@ -20413,7 +20413,7 @@ loc_CCEC:
         movff   0x067, 0x067                ; CD38
         movff   0x068, 0x068                ; CD3C
         return  0x0                         ; CD40
-loc_CD42:
+loc_CD42: ; Compiler startup initializes RAM before entering the application.
         lfsr    0x0, 0x300                  ; CD42
         movlw   0x30                        ; CD46
 loc_CD48:
@@ -20467,7 +20467,7 @@ loc_CDA4:
         bnz     loc_CDA4                    ; CDAE
         movlb   0x0                         ; CDB0
         goto    loc_530E                    ; CDB2
-loc_CDB6:
+loc_CDB6: ; Transmit a null-terminated string from program memory or RAM.
         bra     loc_CDF4                    ; CDB6
 loc_CDB8:
         btfsc   0xac, 0x1, 0x0              ; CDB8
@@ -20641,7 +20641,7 @@ loc_CEE2:
         xorlw   0x03                        ; CEFC
         bz      loc_CECE                    ; CEFE
         bra     loc_CED6                    ; CF00
-loc_CF02:
+loc_CF02: ; Program the shared RTCC alarm when alarms are enabled.
         movff   0xfe8, 0x066                ; CF02
         movlb   0x2                         ; CF06
         btfss   0x7c, 0x7, 0x1              ; CF08
@@ -20693,7 +20693,7 @@ loc_CF02:
         bcf     0xa4, 0x0, 0x0              ; CF64
         bsf     0xa3, 0x0, 0x0              ; CF66
         return  0x0                         ; CF68
-loc_CF6A:
+loc_CF6A: ; Load the five saved calibration words into RAM.
         movlb   0x0                         ; CF6A
         clrf    0x67, 0x1                   ; CF6C
         movlw   0x14                        ; CF6E
@@ -20776,7 +20776,7 @@ loc_CFFE:
         movff   0x067, 0x0c1                ; D02E
         movff   0x068, 0x0c2                ; D032
         return  0x0                         ; D036
-loc_D038:
+loc_D038: ; Compose the spoken firmware and bootloader revision.
         rcall   loc_D08E                    ; D038
         movlb   0x0                         ; D03A
         movff   0xff5, 0x0d4                ; D03C
@@ -20812,7 +20812,7 @@ loc_D054:
         movff   0x0d4, 0x0c8                ; D082
         movff   0x0d5, 0x0c9                ; D086
         goto    loc_A4C0                    ; D08A
-loc_D08E:
+loc_D08E: ; Read bootloader revision bytes from just before the application vector.
         movlw   0xfe                        ; D08E
         movwf   0xf6, 0x0                   ; D090
         movlw   0x18                        ; D092
@@ -20963,7 +20963,7 @@ loc_D194:
 loc_D1AC:
         bsf     0xd8, 0x0, 0x0              ; D1AC
         return  0x0                         ; D1AE
-loc_D1B0:
+loc_D1B0: ; Select the timer settings for the current wait or countdown.
         movff   0xfe8, 0x066                ; D1B0
         bra     loc_D1F0                    ; D1B4
 loc_D1B6:
@@ -21012,7 +21012,7 @@ loc_D1F0:
         btfss   0xd8, 0x2, 0x0              ; D200
         return  0x0                         ; D202
         bra     loc_D1B6                    ; D204
-loc_D206:
+loc_D206: ; Diagnostics handshake runs after the receive event.
         bra     loc_D20A                    ; D206
 loc_D208:
         movf    0xae, 0x0, 0x0              ; D208
@@ -21073,7 +21073,7 @@ loc_D25C:
         movff   0x073, 0x0ce                ; D2A8
         movff   0x074, 0x0cf                ; D2AC
         return  0x0                         ; D2B0
-loc_D2B2:
+loc_D2B2: ; Read a selected software countdown value.
         movff   0xfe8, 0x068                ; D2B2
         bra     loc_D2E6                    ; D2B6
 loc_D2B8:
@@ -21148,7 +21148,7 @@ loc_D34C:
         btfsc   0x66, 0x7, 0x1              ; D352
         decf    0x67, 0x1, 0x1              ; D354
         return  0x0                         ; D356
-loc_D358:
+loc_D358: ; Test the selected software countdown for expiry.
         movff   0xfe8, 0x066                ; D358
         bra     loc_D386                    ; D35C
 loc_D35E:
@@ -21198,7 +21198,7 @@ loc_D39A:
 loc_D3A4:
         bsf     0xd8, 0x0, 0x0              ; D3A4
         return  0x0                         ; D3A6
-loc_D3A8:
+loc_D3A8: ; Store the calendar century and write the RTCC time fields.
         movlb   0x0                         ; D3A8
         clrf    0xc1, 0x1                   ; D3AA
         movlw   0x2a                        ; D3AC
@@ -21231,7 +21231,7 @@ loc_D3CA:
         movlb   0xf                         ; D3F2
         bcf     0x5f, 0x5, 0x1              ; D3F4
         return  0x0                         ; D3F6
-read_eeprom_word:
+read_eeprom_word: ; Read two data EEPROM bytes at the indexed word location.
         bcf     0xd8, 0x0, 0x0              ; D3F8
         movlb   0x0                         ; D3FA
         rlcf    0x66, 0x0, 0x1              ; D3FC
@@ -21579,7 +21579,7 @@ loc_D6BC:
         movff   0x067, 0xfda                ; D6C4
         movff   0xf59, 0xfdf                ; D6C8
         return  0x0                         ; D6CC
-write_eeprom_word:
+write_eeprom_word: ; Write the indexed data EEPROM word.
         bcf     0xd8, 0x0, 0x0              ; D6CE
         movlb   0x0                         ; D6D0
         rlcf    0xc0, 0x0, 0x1              ; D6D2
@@ -21801,7 +21801,7 @@ loc_D87E:
 loc_D88E:
         bsf     0xd8, 0x0, 0x0              ; D88E
         return  0x0                         ; D890
-loc_D892:
+loc_D892: ; Increment a stored counter, treating an erased word as zero.
         movff   0xfe8, 0x0c4                ; D892
         movlb   0x0                         ; D896
         movff   0x0c4, 0x066                ; D898
@@ -21892,7 +21892,7 @@ loc_D982:
         movff   0x07a, 0xfdd                ; D9B6
         movf    0xdd, 0x1, 0x0              ; D9BA
         return  0x0                         ; D9BC
-loc_D9BE:
+loc_D9BE: ; Read the real-time clock and the stored century.
         movlb   0x0                         ; D9BE
         clrf    0x67, 0x1                   ; D9C0
         movlw   0x2a                        ; D9C2
@@ -21914,7 +21914,7 @@ loc_D9BE:
         movff   0xf5c, 0x2b7                ; D9EE
         movff   0xf5d, 0x04c                ; D9F2
         return  0x0                         ; D9F6
-loc_D9F8:
+loc_D9F8: ; Arm or disable the button interrupt recognizer.
         movff   0xfe8, 0x066                ; D9F8
         movlb   0x0                         ; D9FC
         clrf    0xf3, 0x1                   ; D9FE
@@ -22435,7 +22435,7 @@ loc_DE5E:
         movff   0x067, 0x067                ; DE62
         movff   0x068, 0x068                ; DE66
         return  0x0                         ; DE6A
-loc_DE6C:
+loc_DE6C: ; Control the UART receive interrupt and clear the receive-event bits.
         movff   0xfe8, 0x066                ; DE6C
         movlb   0x2                         ; DE70
         bcf     0x7c, 0x1, 0x1              ; DE72
@@ -22475,7 +22475,7 @@ loc_DEAE:
 loc_DEB2:
         movf    0x66, 0x0, 0x1              ; DEB2
         return  0x0                         ; DEB4
-loc_DEB6:
+loc_DEB6: ; Disable serial activity and return peripherals to the idle setup.
         bsf     0x94, 0x6, 0x0              ; DEB6
         bcf     0x9b, 0x6, 0x0              ; DEB8
         movlw   0x04                        ; DEBA
@@ -22487,7 +22487,7 @@ loc_DEB6:
         bcf     0xab, 0x4, 0x0              ; DEC6
         movlw   0x00                        ; DEC8
         goto    loc_DE6C                    ; DECA
-format_hex_digit:
+format_hex_digit: ; Format a nibble as an uppercase hexadecimal character.
         movff   0xfe8, 0x066                ; DECE
         movlw   0x09                        ; DED2
         cpfsgt  0x66, 0x1                   ; DED4

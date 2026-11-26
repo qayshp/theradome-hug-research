@@ -11,6 +11,7 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 | Where did the installers and firmware come from? | [Discovery log](docs/discovery.md) with vendor download links, the archived landing page, unsuccessful searches, the URL recovered from the Java app, and independent copies of the firmware. |
 | What does HUG actually run and which firmware file does it use? | [Java application analysis and source index](docs/java.md). The app downloads one HEX to disk and its programming routine opens a bundled resource. The copies examined had identical contents. |
 | What exactly is in the HEX? | [Firmware inventory](docs/firmware.md), [original Intel HEX](outputs/myTheradome-LH80-labeled.hex), [decoded application binary](outputs/myTheradome-LH80-labeled.bin), and [rebuildable PIC18 assembly](model/rebuild.asm). |
+| Where are the firmware subsystems and unresolved regions? | [Address index and subsystem maps](model/firmware-index.md) and [annotated PIC18 assembly](model/rebuild.asm). |
 | What does a press, light change, or voice announcement mean? | [Observation-to-state guide](model/README.md), [button and charger inputs](model/inputs.md), [charging-light waveform](model/indicator.md), and [voice behavior](model/volume.md). |
 | What survives power loss? | [EEPROM storage map](model/eeprom.md) with the completed-session counter, 50-entry history, and bytewise write order. The volume selection lives in RAM. |
 | How closely does the reconstruction match? | [Build and verification](model/rebuild.md). The recovered assembly reproduces all 50,816 populated bytes. Host-side models also run individual paths against instructions read from the original HEX. |
@@ -18,6 +19,7 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 | How did COM7, the clock and the alarms behave? | [Windows ARM64 setup, serial observations, and clock and alarm details](docs/usb-clock-details.md). |
 | What did the 50 treatment records show? | [Treatment record format, battery and current plots, and feedback analysis](docs/treatment-analysis.md). |
 | Can volume survive restart and apply to every countdown? | [Experimental PIC18 volume settings overlay, build recipe and offline tests](docs/volume-settings.md). |
+| How can I build my own edit and prepare it for HUG? | [Custom application build and local HUG bundle guide](docs/custom-firmware.md). |
 | What evidence distinguishes the archive search and the two firmware tests? | [Search reproducibility and firmware test evidence](docs/research-evidence.md). |
 
 ## Try it offline

@@ -2,6 +2,8 @@
 
 This directory contains an editable assembly reconstruction of the 50,816-byte application shipped with HUG and host-side models of its controls. The archived firmware identifies itself as LH80. Matching an observation on an LH40 increases confidence in the particular behavior. Establishing that the two units use identical firmware would take a device-specific comparison.
 
+The [address index](firmware-index.md) maps the whole image and links to the [control-flow](firmware-control-map.md) and [I/O and storage](firmware-io-map.md) traces. The [custom firmware guide](../docs/custom-firmware.md) covers assembling, checking and preparing a local HUG image.
+
 ## Working backward from a helmet observation
 
 | Observation | What the archived code predicts | What distinguishes the alternatives |
