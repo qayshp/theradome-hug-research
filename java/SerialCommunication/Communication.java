@@ -468,7 +468,7 @@ lbl37:
             byte[] response = new byte[500];
             int i = 0;
             int bytesToRead = 0;
-            byte[] data = /* [EDITORIAL REDACTION] device login credential */;
+            byte[] data = new byte[]{101, 97, 115, 121, 13};
             if (port == null) {
                 System.out.println("wakeup no port found");
             }
