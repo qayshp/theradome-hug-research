@@ -33,7 +33,7 @@ public class SMTPConfig {
     }
 
     public int sendEmail(String name, String emailToAddress, String message) {
-        this.properties = this.configProperties("<redacted-mail-account>", "<redacted-mail-password>");
+        this.properties = this.configProperties(/* [EDITORIAL REDACTION] SMTP account address */, /* [EDITORIAL REDACTION] SMTP password */);
         Authenticator authenticator = null;
         try {
             authenticator = new Authenticator(){

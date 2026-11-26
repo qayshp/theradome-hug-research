@@ -110,7 +110,7 @@ public class FirmwareUpdateMenu {
         System.out.println("emailToAddress:" + emailToAddress);
         System.out.println("Message:" + message);
         SMTPConfig smtpconfig = new SMTPConfig();
-        mailError = smtpconfig.sendEmail(name, "<redacted-recipient>", message);
+        mailError = smtpconfig.sendEmail(name, /* [EDITORIAL REDACTION] support-form recipient address */, message);
         this.contactNameField.setVisible(false);
         this.contactEmailField.setVisible(false);
         this.contactSerialField.setVisible(false);

@@ -25,7 +25,18 @@ The JAR contains **79 application class files** targeting Java 8 bytecode (major
 
 CFR 0.152 produced all 22 listings. An independent rerun reproduced every line of the original decompiler output before the publication edits below. CFR reported that it could not fully reconstruct structured control flow in two methods of `Communication`. Its generated `** GOTO` markers remain visible in those methods. The listings serve as a readable record of the bytecode. A Java application build from these listings has not been demonstrated. The PIC assembly rebuild documented elsewhere applies only to the helmet firmware. [CFR](https://www.benf.org/other/cfr/) · [PIC firmware rebuild](../model/rebuild.md)
 
-The public copy omits embedded mail account details, literal contact recipients and a device credential. Two screen classes contain recipient placeholders. `SMTPConfig` contains account placeholders. The local device authentication method in `Communication` returns failure in this transcription. The other **18 listings** retain the decompiler output, allowing for line endings. No account credentials were tested.
+### Editorial redactions in the Java listings
+
+Each `/* [EDITORIAL REDACTION] … */` comment marks the exact position of an expression the repository editors withheld. The space in the Java statement is deliberately incomplete. The comment describes what the original application supplied there. There are five such omissions across four files.
+
+| Listing | Expression omitted |
+| --- | --- |
+| [Contact.java](../java/com/screens/Contact.java#L81) | The contact form’s recipient email address. |
+| [FirmwareUpdateMenu.java](../java/com/screens/FirmwareUpdateMenu.java#L113) | The support form’s recipient email address. |
+| [SMTPConfig.java](../java/com/screens/SMTPConfig.java#L36) | The sending account address and its SMTP password, each marked separately. The account address also served as the support form’s recipient. |
+| [Communication.java](../java/SerialCommunication/Communication.java#L471) | The byte-array initializer containing the helmet login credential. The surrounding method shows how HUG sends the request, checks the reply, and returns success or failure. |
+
+The first public revision used quoted placeholder strings for the mail fields and showed the login method as a stub that always returned `false`. Those were publication edits. This transcription preserves the original decompiler output around each omission, including both login outcomes. A line-by-line comparison found no other differences across the 22 Java listings apart from line endings. The firmware HEX and binary are preserved byte for byte and are outside the scope of these Java redactions.
 
 ## Reproducing the static inspection
 

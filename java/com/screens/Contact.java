@@ -78,7 +78,7 @@ extends JFrame {
         System.out.println("emailToAddress:" + emailToAddress);
         System.out.println("Message:" + message);
         SMTPConfig smtpconfig = new SMTPConfig();
-        smtpconfig.sendEmail(name, "<redacted-recipient>", message);
+        smtpconfig.sendEmail(name, /* [EDITORIAL REDACTION] contact-form recipient address */, message);
     }
 }
 

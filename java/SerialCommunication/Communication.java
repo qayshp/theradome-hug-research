@@ -463,7 +463,47 @@ lbl37:
     }
 
     private boolean sendPassword(SerialPort port) {
-        // The read-only transcription omits the device access credential.
+        block8: {
+            String response_str = "";
+            byte[] response = new byte[500];
+            int i = 0;
+            int bytesToRead = 0;
+            byte[] data = /* [EDITORIAL REDACTION] device login credential */;
+            if (port == null) {
+                System.out.println("wakeup no port found");
+            }
+            port.writeBytes(data, 5L);
+            i = 0;
+            System.out.println("password writtenn");
+            while (i < 5) {
+                try {
+                    Thread.sleep(200L);
+                    bytesToRead = port.bytesAvailable();
+                    System.out.println("\n\rBytes available" + Integer.toString(bytesToRead));
+                    if (bytesToRead > 0) {
+                        port.readBytes(response, bytesToRead);
+                        String str = new String(response);
+                        response_str = String.valueOf(response_str) + str;
+                        System.out.println("\n\rResponse" + response_str);
+                    }
+                    ++i;
+                }
+                catch (Exception e) {
+                    System.out.println("waiting for response");
+                }
+            }
+            if (response_str.length() <= 0) break block8;
+            System.out.println("\n\r-----checking response ----------" + response_str);
+            String boardTest = "BOARD TEST";
+            if (!response_str.contains(boardTest)) break block8;
+            return true;
+        }
+        try {
+            System.out.println("Err: No response");
+        }
+        catch (Exception ex) {
+            System.out.println("write failed");
+        }
         return false;
     }
 
