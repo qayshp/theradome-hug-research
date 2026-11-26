@@ -26,7 +26,7 @@ class Trace(Runner):
         self.speech = []
         self.eeprom_busy_reads = 0
         self.ram[0xFF2] = 0x80
-        self.ram[0x2A0] = gain  # set by the subsystem check before the automatic call
+        self.ram[0x2A0] = gain  # set by the subsystem check before ready or automatic speech
 
     def read(self, address):
         if address == 0xF7F and self.eeprom_busy_reads:
@@ -169,6 +169,43 @@ def check_holds(original, candidate):
     return count
 
 
+def check_ready_prompts(original, candidate):
+    class ReadyTrace(Trace):
+        def __init__(self, image, index, gain, audio_enabled):
+            super().__init__(image, {}, mode=4, index=index, gain=gain)
+            self.ram[0x27C] = 4 if audio_enabled else 0
+            self.clip_calls = []
+
+        def peripheral(self, pc):
+            if pc != 0x94F2:
+                return super().peripheral(pc)
+            self.clip_calls.append((self.pair(0x81), self.ram[0x2B9], self.w, self.bank, self.status))
+            if not self.ram[0x27C] & 4:
+                return False  # execute the player's disabled-audio return
+            super().peripheral(pc)
+            # Exercise preservation of the result registers at the playback boundary.
+            self.w, self.bank, self.status = 0xA6, 1, 5
+            return True
+
+    # The three clips are split between the first two waiting-for-treatment passes.
+    paths = ((0x5DB6, (0x2E, 0x27)), (0x5DDA, (0x20,)))
+    count = 0
+    for (address, clips), index, gain, enabled in product(paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
+        stock = ReadyTrace(original, index, gain, enabled)
+        patched = ReadyTrace(candidate, index, gain, enabled)
+        for pic in (stock, patched):
+            pic.run(address, 0x5DCE)
+        expected = GAINS[index] if index < len(GAINS) else gain
+        assert [call[:2] for call in stock.clip_calls] == [(clip, gain) for clip in clips]
+        assert [call[:2] for call in patched.clip_calls] == [(clip, expected) for clip in clips]
+        assert [call[2:] for call in patched.clip_calls] == [call[2:] for call in stock.clip_calls]
+        assert patched.ram == stock.ram
+        assert (patched.w, patched.bank, patched.status) == (stock.w, stock.bank, stock.status)
+        assert not patched.reads and not patched.writes
+        count += 1
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", type=Path)
@@ -187,6 +224,7 @@ def main():
         ("double press and restart", check_cycle(after)),
         ("countdown and timing", check_announcements(before, after)),
         ("long press", check_holds(before, after)),
+        ("ready prompt", check_ready_prompts(before, after)),
     ]
     for name, count in checks:
         print(f"{name}: {count} passed")

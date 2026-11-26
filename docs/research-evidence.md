@@ -1,6 +1,6 @@
 # Archive and firmware test evidence
 
-The archive search recovered the vendor installers and the stock application. Two experimental firmware builds followed. Only the second build was tested on the physical EVO LH40. The installer fingerprints, source, and reported results are public. The vendor packages, raw archive exports, raw device captures, local updater bundle, and compiled experimental images are held in the local research archive. [Discovery and fingerprints](discovery.md) · [Live test](volume-settings.md#live-evo-lh40-test-on-november-26-2026)
+The archive search recovered the vendor installers and the stock application. Two experimental builds preceded the live update on the EVO LH40. The second build was installed. A later revision adds the ready-prompt fix and has been tested offline. The installer fingerprints, source, and reported results are public. The vendor packages, raw archive exports, raw device captures, local updater bundle, and compiled experimental images are held in the local research archive. [Discovery and fingerprints](discovery.md) · [Live test](volume-settings.md#live-evo-lh40-test-on-november-26-2026) · [Ready-prompt build](volume-settings.md#offline-build-and-test)
 
 ## Repeating the archive search
 

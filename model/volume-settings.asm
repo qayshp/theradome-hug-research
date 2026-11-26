@@ -8,6 +8,9 @@ write_eeprom_word       equ     0xD6CE
 button_feedback         equ     0x74DC
 countdown_report        equ     0xCA60
 countdown_speech_tail   equ     0xCACC
+play_clip               equ     0x94F2
+clip_number             equ     0x081
+wreg_address            equ     0xFE8
 volume_index            equ     0x044
 live_gain               equ     0x2B9
 saved_auto_gain         equ     0x2A0
@@ -19,6 +22,14 @@ eeadrh_access           equ     0x63
 
         org     0x5358
         call    volume_startup, 0
+
+; The routine ready prompt uses two clips on the first pass and one on the next.
+        org     0x5DBE
+        call    volume_ready_clip, 0
+        org     0x5DCA
+        call    volume_ready_clip, 0
+        org     0x5DE2
+        call    volume_ready_clip, 0
 
         org     0x5E26
         call    volume_auto_report, 0
@@ -120,5 +131,15 @@ volume_valid_index:
 volume_store_gain:
         movlb   2
         movwf   0xB9, 1
+        return  0
+
+volume_ready_clip:
+; The preceding ready-state check has saved the incoming gain at this address.
+        movff   live_gain, saved_auto_gain
+        rcall   volume_apply
+        movlb   0
+        movff   clip_number, wreg_address
+        call    play_clip, 0
+        movff   saved_auto_gain, live_gain
         return  0
         end

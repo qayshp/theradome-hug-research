@@ -33,7 +33,7 @@ At 3.60 V or higher, all 22 current readings fell within 10.43–10.51 mA. The 2
 
 [Stock rebuild and hashes](../model/rebuild.md) · [Voice test harness and original audio behavior](../model/volume.md)
 
-A later experiment extended the fix to restore the selected volume at startup and apply it to automatic countdowns. The assembly overlay and build recipe are available alongside its 1,136 offline instruction-level tests. [Persistent volume and countdowns](volume-settings.md)
+A later experiment extended the fix to restore the selected volume at startup and apply it to automatic countdowns. That version passed 1,136 offline cases and was installed on the test LH40. The current overlay adds the ready-prompt change and passes 1,232 offline cases. [Persistent volume and announcements](volume-settings.md)
 
 ## Backup and recovery
 

@@ -24,6 +24,8 @@ The diagnostic sessions used 57,600 baud, eight data bits, no parity and one sto
 
 [Published USB verification](verification.md#live-evo-lh40-tests) · [After-update observation](volume-settings.md#live-evo-lh40-test-on-november-26-2026)
 
+Stock HUG reads the application revision from the same `D` parameter response that also exposed the bootloader revision in the COM7 capture. [HUG revision parser](../java/SerialCommunication/Communication.java#L559)
+
 On the archived charged-state path, the long-hold handler calls the revision speech routine first. **The spoken revision sends zero bytes over the serial port on this path.** After the audio finishes, the firmware opens a timed receive window. It waits for a host byte before starting the diagnostic handshake. If the window expires, the receive path shuts down again. Windows can continue to show a healthy USB bridge throughout. The silence on reconnect and the reply when resuming an existing board session describe two different application states. [Hold handler](../model/rebuild.asm#L10176-L10198) · [Revision speech](../model/rebuild.asm#L20779-L20822) · [Timed receive](../model/rebuild.asm#L20021-L20044) · [Handshake entry](../model/rebuild.asm#L21015-L21031)
 
 ## Diagnostic reads

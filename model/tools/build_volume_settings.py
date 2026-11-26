@@ -14,7 +14,11 @@ APPLICATION_START = 0x1900
 EXTENSION_START = 0xDF80
 PIC_PROGRAM_END = 0x10000
 RECORD_SIZE = 64
-HOOKS = ((0x5358, 4), (0x5E26, 4), (0x72AC, 4), (0x7330, 2), (0xCAC8, 4))
+HOOKS = (
+    (0x5358, 4),
+    (0x5DBE, 4), (0x5DCA, 4), (0x5DE2, 4),
+    (0x5E26, 4), (0x72AC, 4), (0x7330, 2), (0xCAC8, 4),
+)
 
 
 def encode_record(address, kind, payload=b""):
