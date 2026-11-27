@@ -156,6 +156,8 @@ class Runner:
                 self.z(0)
             elif op & 0xFE00 == 0x6800:  # SETF
                 self.store(f, 0xFF)
+            elif op & 0xFE00 == 0x6000:  # CPFSLT
+                skip = v < self.w
             elif op & 0xFE00 == 0x6400:
                 skip = v > self.w
             elif op & 0xFE00 == 0x6600:  # TSTFSZ

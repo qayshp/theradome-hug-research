@@ -1,5 +1,7 @@
 """Run the assembled volume settings overlay against modeled PIC18 peripherals."""
 import argparse
+from copy import deepcopy
+from hashlib import sha256
 from itertools import product
 from pathlib import Path
 
@@ -13,20 +15,50 @@ CODES = (0xC3, 0xC6, 0xC9, 0xCC)
 GAINS = (0, 1, 3, 14)
 REPORT_TICKS = (0, 1, 29, 30, 148, 149, 150, 298, 299, 300, 448, 449, 450, 599, 600, 65535)
 STOCK_AUTOMATIC_TICKS = {149, 299, 449}
+WARNING_BUILD_SHA256 = "aef971a11b97101bdeee421517cab60e516df8bf0b1ff65c81ff054c8e2f2cfd"
+CYCLE_MODES = (0, 4, 5, 7, 8, 9, 0x12, 0x19)
 
 
 class Trace(Runner):
     """Model EEPROM at the archived helper boundaries and capture speech requests."""
 
-    def __init__(self, image, eeprom, mode=7, index=0, gain=0):
+    def __init__(self, image, eeprom, mode=7, index=0, gain=0, baseline=None):
         super().__init__(image, Voice(index, gain, mode, 123))
         self.eeprom = eeprom
+        self.baseline = baseline
         self.writes = []
         self.reads = []
         self.speech = []
+        self.player_registers = []
         self.eeprom_busy_reads = 0
         self.ram[0xFF2] = 0x80
         self.ram[0x2A0] = gain  # set by the subsystem check before ordinary speech
+
+    def run(self, pc, stop=None):
+        if self.baseline is None:
+            return super().run(pc, stop)
+
+        # Replay this segment from identical RAM, registers and peripheral state.
+        reference = deepcopy(self, {id(self.image): self.baseline, id(self.baseline): self.baseline})
+        Runner.run(reference, pc, stop)
+        super().run(pc, stop)
+        for field, value in vars(self).items():
+            if field in ("image", "baseline"):
+                continue
+            reference_value = vars(reference)[field]
+            if value != reference_value:
+                if field == "ram":
+                    offsets = [hex(i) for i, (a, b) in enumerate(zip(reference_value, value)) if a != b]
+                    raise AssertionError(f"a99c969 mismatch at 0x{pc:04X}: RAM differs at {offsets}")
+                raise AssertionError(
+                    f"a99c969 mismatch at 0x{pc:04X}: {field}: {reference_value!r} != {value!r}"
+                )
+
+    def record_playback(self):
+        enabled = bool(self.ram[0x27C] & 4)
+        self.speech.append(("clip", self.pair(0x81), self.ram[0x2B9]))
+        self.player_registers.append((self.w, self.bank, self.status, enabled))
+        return enabled
 
     def read(self, address):
         if address == 0xF7F and self.eeprom_busy_reads:
@@ -64,7 +96,7 @@ class Trace(Runner):
         if pc == 0xA4C0:
             self.speech.append(("number", self.pair(0xC8), self.ram[0x2B9]))
         if pc == 0x94F2:
-            self.speech.append(("clip", self.pair(0x81), self.ram[0x2B9]))
+            self.record_playback()
         return super().peripheral(pc)
 
     def write_word(self, start, word):
@@ -86,11 +118,10 @@ class Trace(Runner):
 class PromptTrace(Trace):
     """Capture speech arguments while running the stock counted-message logic."""
 
-    def __init__(self, image, mode, index, gain, audio_enabled, completed=0):
+    def __init__(self, image, mode, index, gain, audio_enabled, completed=0, baseline=None):
         super().__init__(image, dict(enumerate(completed.to_bytes(2, "little"))),
-                         mode=mode, index=index, gain=gain)
+                         mode=mode, index=index, gain=gain, baseline=baseline)
         self.ram[0x27C] = 4 if audio_enabled else 0
-        self.player_registers = []
 
     def peripheral(self, pc):
         if pc == 0xD3F8 and self.pair(0x66) == 0:
@@ -105,9 +136,7 @@ class PromptTrace(Trace):
             return True
         if pc != 0x94F2:
             return super().peripheral(pc)
-        self.speech.append(("clip", self.pair(0x81), self.ram[0x2B9]))
-        self.player_registers.append((self.w, self.bank, self.status))
-        if not self.ram[0x27C] & 4:
+        if not self.record_playback():
             return False  # execute the player's disabled-audio return
         Runner.peripheral(self, pc)
         # Exercise preservation of the result registers at the playback boundary.
@@ -122,10 +151,10 @@ def linear(image):
     return program
 
 
-def check_restart(candidate):
+def check_restart(candidate, baseline=None):
     for code in range(256):
         eeprom = {PREFERENCE: code, PREFERENCE + 1: 0x57}
-        pic = Trace(candidate, eeprom)
+        pic = Trace(candidate, eeprom, baseline=baseline)
         pic.restart()
         index = CODES.index(code) if code in CODES else 0
         assert (pic.ram[0x44], pic.ram[0x2B9]) == (index, GAINS[index]), code
@@ -135,12 +164,12 @@ def check_restart(candidate):
     return 256
 
 
-def check_cycle(candidate):
+def check_cycle(candidate, baseline=None):
     eeprom = {PREFERENCE + 1: 0x57}
     count = 0
-    for mode in (0, 4, 5, 7, 8, 9, 0x12, 0x19):
+    for mode in CYCLE_MODES:
         for step in range(8):
-            pic = Trace(candidate, eeprom, mode=mode)
+            pic = Trace(candidate, eeprom, mode=mode, baseline=baseline)
             pic.restart()
             assert pic.ram[0x44] == step % 4
             pic.writes.clear()
@@ -156,14 +185,14 @@ def check_cycle(candidate):
     return count
 
 
-def check_announcements(original, candidate):
+def check_announcements(original, candidate, baseline=None):
     count = 0
     for mode, index, gain, ticks in product((7, 8), range(4), GAINS, REPORT_TICKS):
         for automatic in (False, True):
             if automatic and mode != 7:
                 continue
             stock = Trace(original, {}, mode=mode, index=index, gain=gain)
-            patched = Trace(candidate, {}, mode=mode, index=index, gain=gain)
+            patched = Trace(candidate, {}, mode=mode, index=index, gain=gain, baseline=baseline)
             for pic in (stock, patched):
                 pic.putpair(0x26F, ticks)
                 if automatic:
@@ -183,11 +212,11 @@ def check_announcements(original, candidate):
     return count
 
 
-def check_holds(original, candidate):
+def check_holds(original, candidate, baseline=None):
     count = 0
     for mode, index, gain in product((5, 7, 8), range(4), GAINS):
         stock = Trace(original, {}, mode=mode, index=index, gain=gain)
-        patched = Trace(candidate, {}, mode=mode, index=index, gain=gain)
+        patched = Trace(candidate, {}, mode=mode, index=index, gain=gain, baseline=baseline)
         stock.press(mode, 3)
         patched.press(mode, 3)
         assert patched.ram[0x44] == index
@@ -211,13 +240,13 @@ def check_prompt_result(stock, patched, sequence, gain, expected):
     assert patched.eeprom == stock.eeprom
 
 
-def check_ready_prompts(original, candidate):
+def check_ready_prompts(original, candidate, baseline=None):
     # The three clips are split between the first two waiting-for-treatment passes.
     paths = ((0x5DB6, (0x2E, 0x27)), (0x5DDA, (0x20,)))
     count = 0
     for (address, clips), index, gain, enabled in product(paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
         stock = PromptTrace(original, 4, index, gain, enabled)
-        patched = PromptTrace(candidate, 4, index, gain, enabled)
+        patched = PromptTrace(candidate, 4, index, gain, enabled, baseline=baseline)
         for pic in (stock, patched):
             pic.run(address, 0x5DCE)
         expected = GAINS[index] if index < len(GAINS) else gain
@@ -227,13 +256,13 @@ def check_ready_prompts(original, candidate):
     return count
 
 
-def check_pause_prompts(original, candidate):
+def check_pause_prompts(original, candidate, baseline=None):
     paths = ((0x5EAC, 0x5D4C, (0x20,)), (0x5E8E, 0x5DAE, (0x27, 0x2A)))
     count = 0
     for (address, stop, clips), index, gain, enabled in product(
             paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
         stock = PromptTrace(original, 8, index, gain, enabled)
-        patched = PromptTrace(candidate, 8, index, gain, enabled)
+        patched = PromptTrace(candidate, 8, index, gain, enabled, baseline=baseline)
         for pic in (stock, patched):
             pic.bank = 2
             pic.run(address, stop)
@@ -244,14 +273,14 @@ def check_pause_prompts(original, candidate):
     return count
 
 
-def check_count_prompts(original, candidate):
+def check_count_prompts(original, candidate, baseline=None):
     # Enter after the readiness check or after completion logging and shutdown.
     paths = ((0x5D84, 0x5D9E, 4, 0x24), (0x5F14, 0x5F2E, 0x0C, 0x23))
     count = 0
     for (address, stop, mode, phrase), variant, index, gain, enabled, completed in product(
             paths, (0, 2), (0, 1, 2, 3, 4, 255), GAINS, (False, True), (0, 12, 255, 65535)):
         stock = PromptTrace(original, mode, index, gain, enabled, completed)
-        patched = PromptTrace(candidate, mode, index, gain, enabled, completed)
+        patched = PromptTrace(candidate, mode, index, gain, enabled, completed, baseline=baseline)
         for pic in (stock, patched):
             pic.ram[0x2B8] = variant
             pic.bank = 2
@@ -277,8 +306,8 @@ def check_count_prompts(original, candidate):
 class StatusTrace(PromptTrace):
     """Exercise archived status and stop dispatch with modeled device boundaries."""
 
-    def __init__(self, image, mode, index, gain, enabled, sensors=None):
-        super().__init__(image, mode, index, gain, enabled)
+    def __init__(self, image, mode, index, gain, enabled, sensors=None, baseline=None):
+        super().__init__(image, mode, index, gain, enabled, baseline=baseline)
         self.ram[0x2B5] = mode
         self.sensor_results = {0x9302: 4, 0xADB6: 9, 0x7D4C: 0x0C, 0x8F06: 0x0E}
         self.sensor_results.update(sensors or {})
@@ -323,7 +352,7 @@ def check_status_outcome(stock, patched, stock_clips, patched_clips):
     assert patched.eeprom == stock.eeprom and patched.device_calls == stock.device_calls
 
 
-def check_status_announcements(original, candidate):
+def check_status_announcements(original, candidate, baseline=None):
     # Explicit stock clip order at both voice layouts, including shared fragments.
     battery_low = ((0x2C, 0x21), (0x36, 0x2C, 0x32, 0x33))
     battery_fault = ((0x1F, 0x21), (0x1F, 0x32, 0x33))
@@ -363,7 +392,7 @@ def check_status_announcements(original, candidate):
         advisory, faults = advisory[variant == 2], faults[variant == 2]
         mode = 7 if allow else 4
         stock = StatusTrace(original, mode, index, gain, enabled, sensors)
-        patched = StatusTrace(candidate, mode, index, gain, enabled, sensors)
+        patched = StatusTrace(candidate, mode, index, gain, enabled, sensors, baseline=baseline)
         for pic in (stock, patched):
             pic.ram[0x2B8] = variant
             pic.ram[0x27C] |= allow
@@ -390,14 +419,14 @@ def check_status_announcements(original, candidate):
     return count
 
 
-def check_stop_prompts(original, candidate):
+def check_stop_prompts(original, candidate, baseline=None):
     # Verify the dispatch for a real long hold and for the three stock timeout paths.
     paths = ((4, None), (7, None), (8, None), (9, None),
              (4, 0x5D60), (8, 0x5E6C), (9, 0x5ECC))
     count = 0
     for (mode, timeout), index, gain, enabled in product(paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
         stock = StatusTrace(original, mode, index, gain, enabled)
-        patched = StatusTrace(candidate, mode, index, gain, enabled)
+        patched = StatusTrace(candidate, mode, index, gain, enabled, baseline=baseline)
         for pic in (stock, patched):
             if timeout is None:
                 pic.press(mode, 3)
@@ -421,11 +450,11 @@ def check_stop_prompts(original, candidate):
     return count
 
 
-def check_failed_state_prompt(original, candidate):
+def check_failed_state_prompt(original, candidate, baseline=None):
     count = 0
     for variant, index, gain, enabled in product((0, 2), (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
         stock = StatusTrace(original, 9, index, gain, enabled)
-        patched = StatusTrace(candidate, 9, index, gain, enabled)
+        patched = StatusTrace(candidate, 9, index, gain, enabled, baseline=baseline)
         for pic in (stock, patched):
             pic.ram[0x2B8] = variant
             pic.bank = 2
@@ -444,10 +473,30 @@ def check_failed_state_prompt(original, candidate):
     return count
 
 
+def check_feedback_gate(candidate, baseline):
+    count = 0
+    for mode, index, gain, enabled in product(CYCLE_MODES, range(4), GAINS, (False, True)):
+        pic = PromptTrace(candidate, mode, index, gain, enabled, baseline=baseline)
+        pic.press(mode, 5)
+        selected = (index + 1) % 4
+        assert pic.speech == [("clip", 0x31, GAINS[selected])]
+        assert pic.player_registers[0][3] == enabled
+        assert (pic.ram[0x44], pic.ram[0x2B9]) == (selected, GAINS[selected])
+        assert pic.writes == [(PREFERENCE, CODES[selected])]
+        count += 1
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", type=Path)
+    parser.add_argument("--compare-to", type=Path, help="verified HEX built from commit a99c969")
     args = parser.parse_args()
+    baseline = None
+    if args.compare_to:
+        if sha256(args.compare_to.read_bytes()).hexdigest() != WARNING_BUILD_SHA256:
+            parser.error("--compare-to must be the exact a99c969 warning build")
+        baseline = linear(load_hex(args.compare_to))
     original, candidate = load_hex(ORIGINAL), load_hex(args.image)
     assert candidate.keys() == set(range(APPLICATION_START, APPLICATION_END))
     hooks = {a for start, size in HOOKS for a in range(start, start + size)}
@@ -457,20 +506,25 @@ def main():
     assert archive_layout(candidate) == args.image.read_bytes()
     before, after = linear(original), linear(candidate)
     checks = [
-        ("restart value", check_restart(after)),
-        ("double press and restart", check_cycle(after)),
-        ("countdown and timing", check_announcements(before, after)),
-        ("long press", check_holds(before, after)),
-        ("ready prompt", check_ready_prompts(before, after)),
-        ("pause reminder and resume prompts", check_pause_prompts(before, after)),
-        ("numbered treatment start and completion prompts", check_count_prompts(before, after)),
-        ("advisory and blocking status announcements", check_status_announcements(before, after)),
-        ("manual and timeout stop prompts", check_stop_prompts(before, after)),
-        ("supplemental failed-check prompt", check_failed_state_prompt(before, after)),
+        ("restart value", check_restart(after, baseline)),
+        ("double press and restart", check_cycle(after, baseline)),
+        ("countdown and timing", check_announcements(before, after, baseline)),
+        ("long press", check_holds(before, after, baseline)),
+        ("ready prompt", check_ready_prompts(before, after, baseline)),
+        ("pause reminder and resume prompts", check_pause_prompts(before, after, baseline)),
+        ("numbered treatment start and completion prompts", check_count_prompts(before, after, baseline)),
+        ("advisory and blocking status announcements", check_status_announcements(before, after, baseline)),
+        ("manual and timeout stop prompts", check_stop_prompts(before, after, baseline)),
+        ("supplemental failed-check prompt", check_failed_state_prompt(before, after, baseline)),
     ]
+    if baseline is not None:
+        checks.append(("double press with audio enabled and disabled", check_feedback_gate(after, baseline)))
     for name, count in checks:
         print(f"{name}: {count} passed")
-    print(f"{sum(count for _, count in checks)} instruction-level cases passed")
+    total = sum(count for _, count in checks)
+    print(f"{total} instruction-level cases passed")
+    if baseline is not None:
+        print(f"{total} cases matched a99c969 at the modeled boundaries")
     print(f"{len(changed)} changed stock bytes across {len(HOOKS)} hooks")
 
 

@@ -6,6 +6,7 @@ read_eeprom_word        equ     0xD3F8
 begin_eeprom_write      equ     0xD80A
 write_eeprom_word       equ     0xD6CE
 button_feedback         equ     0x74DC
+button_feedback_clip    equ     0x7512
 countdown_report        equ     0xCA60
 countdown_speech_tail   equ     0xCACC
 play_clip               equ     0x94F2
@@ -74,6 +75,34 @@ eeadrh_access           equ     0x63
         org     0x7330
         nop
 
+; Share the gain conversion in the original button-volume code region.
+        org     0x74E8
+        bnz     volume_feedback
+
+        org     0x74EC
+volume_index_gain:
+        movlw   0x03
+        cpfsgt  volume_index, 0
+        bra     volume_valid_index
+        return  0
+volume_valid_index:
+        movlw   0x00
+        btfsc   volume_index, 0, 0
+        movlw   0x01
+        btfss   volume_index, 1, 0
+        bra     volume_store_gain
+        movlw   0x03
+        btfsc   volume_index, 0, 0
+        movlw   0x0E
+volume_store_gain:
+        movlb   2
+        movwf   0xB9, 1
+        return  0
+
+volume_feedback:
+        rcall   volume_index_gain
+        bra     button_feedback_clip
+
 ; The shared check saves and later restores the live gain at its stock sites.
 ; Start at the selection for advisories. Apply the floor only on fault branches.
         org     0x80C4
@@ -121,8 +150,7 @@ volume_startup:
         xorwf   0x66, 0, 1
         btfss   0xD8, 2, 0
         clrf    volume_index, 0
-        rcall   volume_apply
-        return  0
+        bra     volume_apply
 
 volume_cycle:
         incf    volume_index, 1, 0
@@ -172,32 +200,14 @@ volume_speech:
         goto    countdown_speech_tail
 
 volume_apply:
-        movlw   0x03
-        cpfsgt  volume_index, 0
-        bra     volume_valid_index
-        return  0
-volume_valid_index:
-        movlw   0x00
-        btfsc   volume_index, 0, 0
-        movlw   0x01
-        btfss   volume_index, 1, 0
-        bra     volume_store_gain
-        movlw   0x03
-        btfsc   volume_index, 0, 0
-        movlw   0x0E
-volume_store_gain:
-        movlb   2
-        movwf   0xB9, 1
-        return  0
+        goto    volume_index_gain
 
 volume_prompt_clip:
 ; The stock foreground check also uses this location to save the gain.
         movff   live_gain, saved_auto_gain
         rcall   volume_apply
 volume_play_prompt:
-        movlb   0
-        movff   clip_number, wreg_address
-        call    play_clip, 0
+        rcall   volume_replay_clip
 volume_prompt_restore:
         movff   saved_auto_gain, live_gain
         return  0
@@ -221,14 +231,14 @@ volume_fault_floor:
 ; Larger right-shift counts mean less output. Soft is three shifts.
         movlb   2
         movlw   0x03
-        cpfsgt  0xB9, 1
-        return  0
+        cpfslt  0xB9, 1
         movwf   0xB9, 1
         return  0
 
 volume_status_fault_clip:
 ; Preserve the outer status routine's saved gain. Its exit restores it.
         rcall   volume_fault_floor
+volume_replay_clip:
         movlb   0
         movff   clip_number, wreg_address
         goto    play_clip

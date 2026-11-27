@@ -12,8 +12,8 @@ SOURCE = ROOT / "model/volume-settings.asm"
 STOCK_SHA256 = "40caa7fd679e70205a8acc923f5586484884060e9ef4eb0cfaa4c4d23f120c69"
 APPLICATION_START = 0x1900
 EXTENSION_START = 0xDF80
-# Exclusive end of the offline candidate, including its additional flash row.
-APPLICATION_END = 0xE080
+# Exclusive end of the application rows accepted by the tested LH40.
+APPLICATION_END = 0xE040
 RECORD_SIZE = 64
 HOOKS = (
     (0x5358, 4),
@@ -22,6 +22,7 @@ HOOKS = (
     (0x5E26, 4), (0x5E96, 4), (0x5EA2, 4), (0x5EB4, 4),
     (0x5F24, 4), (0x5F2A, 4), (0x5F46, 4), (0x5F52, 4),
     (0x6306, 4), (0x72AC, 4), (0x7330, 2),
+    (0x74E8, 2), (0x74EC, 34),
     (0x80C4, 4), (0x80CE, 4), (0x8122, 4), (0x81C4, 4), (0x81DE, 4),
     (0x8240, 4), (0x8274, 4), (0x8316, 4), (0x838C, 4),
     (0xCAC8, 4),
