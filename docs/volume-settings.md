@@ -133,8 +133,28 @@ On November 27, 2026, the checked Windows runner transferred the image built fro
 | Handshake accepted | Steady orange appeared when the handshake completed. The owner saw no further change when transfer began or while it was in progress. |
 | Loader reported `Success` | The light went out briefly, showed several colors, and returned to steady orange. The helmet stayed silent. No new diagnostic session had started. |
 | USB unplugged once, with the switch untouched | The light blinked red at about two flashes per second. |
+| Brief switch press while unplugged and off-head | The blink appeared to restart with the press and continued at about two flashes per second. The helmet stayed silent. |
+| Reconnected to laptop USB using the same data cable, with the switch untouched | The light returned to steady orange. No new diagnostic session was running. |
+| One brief switch press with laptop USB connected | The light stayed steady orange. The owner heard no speech and saw no laser emission. |
 
 Neither charged-state button handler explicitly requests yellow for speech. A change in the charging indication could account for the brief yellow. Charge-status inputs and charging current were unmeasured during playback. Board Test requests steady red and green together, which fits the first orange seen at the handshake. The origin of the steady orange during and after transfer remains unverified. The LH40/LH80 manual lists a firmware update as one possible reason for a blinking red reset indication. For a system error it describes one brief switch press with the helmet unplugged to check for “System resumed.” [Charged-state button handlers](../model/rebuild.asm#L10170) · [Indicator model](../model/indicator.md) · [Board Test indicator](../model/rebuild.asm#L1489) · [Theradome owner’s manual, pp. 16 and 30](https://device.report/m/f7d6c2daf50f49bd67078d4ed2da62448f70583a10c274b357377daf5ef15b9a) · [Theradome system-error instructions](https://theradome.com/a/docs/troubleshooting/system-error-message)
+
+The unplugged press did not produce the documented acknowledgment. The archived firmware has several red-only patterns and distinguishes electrical switch activity from a completed button event. A change in the blink phase is insufficient to identify the state or gesture. The plugged-in press yielded no observable response, although a press can launch diagnostics if Board Test is active. No serial traffic was captured during that press. The earlier wait on laptop USB is an observed interval. The archived calibration paths check saved markers and charger inputs, and HUG's guidance for repeated calibration speech refers to a steady green light. Those sources give no 24-minute recovery interval. [Button-event recognition](../model/inputs.md#from-switch-edges-to-event-codes) · [Calibration prerequisites](../model/rebuild.asm#L6791-L6822) · [HUG help](../java/com/screens/FirmwareUpdateMenu.java#L432)
+
+### Calibration snapshots across updates
+
+The first capture predates experimental firmware. The second followed the first flash, `9945182`, and its observed calibration. There was an intervening transfer of `35f7ac3` with a revision read and no captured calibration parameters. The runner captured the third column after the owner reported completing calibration on `50b1474` and before transferring `cbb99db`. The snapshots show stored values and span updates and use between captures. [First update parameter comparison](#eeprom-display-before-the-update-and-after-calibration) · [Intervening transfer](#expanded-treatment-prompt-update)
+
+| Field | Original read | After `9945182` calibration | After `50b1474` calibration, before `cbb99db` |
+| --- | ---: | ---: | ---: |
+| 20 · Battery-voltage offset | −4 | −13 | 1 |
+| 21 · Internal-voltage measurement offset | −30 | −13 | −86 |
+| 22 · Temperature offset | −1 | −1 | −1 |
+| 23 · Laser-current feedback offset | −25 | −25 | −22 |
+| 24 · Proximity-sensor offset | −5 | −6 | −4 |
+| Calibration temperature | 23.50 °C | 22.82 °C | 20.88 °C |
+
+The manufacturing flags in fields 25–31 matched across all three reads, including `A5A5` in the calibration-complete field 29. Both install-date fields in the latest two reads reported November 26, 2026. The raw captures are retained locally. [Calibration sequence and saved values](../model/firmware-io-map.md#how-the-built-in-calibration-runs)
 
 ## Live 797-row refactor
 
