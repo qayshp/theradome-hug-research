@@ -10,7 +10,7 @@ These observations come from one EVO LH40 and the archived HUG application image
 
 [FTDI VCP driver downloads](https://ftdichip.com/drivers/vcp-drivers/) · [FTDI Windows installation guide](https://ftdichip.com/wp-content/uploads/2022/05/AN_396-FTDI-Drivers-Installation-Guide-for-Windows-10_11.pdf) · [Live verification](verification.md#live-evo-lh40-tests)
 
-The same data cable initially showed charging on a wall adapter and no apparent charging on the PC. Later, after a disconnect and reconnect to the laptop, the switch faded between orange and yellow and then held green. That later sequence supports charging and a charge-complete indication on this laptop. USB current was unmeasured in both observations. [Later laptop charging observation](volume-settings.md#what-the-switch-light-indicated)
+The same data cable initially showed charging on a wall adapter and no apparent charging on the PC. Later, after a disconnect and reconnect to the laptop, the switch faded between orange and yellow and then held green. In ordinary operation that sequence supports charging and a charge-complete indication on this laptop. USB current was unmeasured in both observations. Board Test can also show steady green, so a post-flash green light needs the context of the serial reply and calibration prompts. [Later laptop charging observation](volume-settings.md#what-the-switch-light-indicated) · [Post-flash checks](board-test-recovery.md#recover-after-a-successful-transfer)
 
 ## What the COM7 sessions showed
 
@@ -27,6 +27,8 @@ The diagnostic sessions used 57,600 baud, eight data bits, no parity and one sto
 Stock HUG reads the application revision from the same `D` parameter response that also exposed the bootloader revision in the COM7 capture. [HUG revision parser](../java/SerialCommunication/Communication.java#L559)
 
 On the archived charged-state path, the long-hold handler calls the revision speech routine first. **The spoken revision sends zero bytes over the serial port on this path.** After the audio finishes, the firmware opens a timed receive window. It waits for a host byte before starting the diagnostic handshake. If the window expires, the receive path shuts down again. Windows can continue to show a healthy USB bridge throughout. The silence on reconnect and the reply when resuming an existing board session describe two different application states. [Hold handler](../model/rebuild.asm#L10176-L10198) · [Revision speech](../model/rebuild.asm#L20779-L20822) · [Timed receive](../model/rebuild.asm#L20021-L20044) · [Handshake entry](../model/rebuild.asm#L21015-L21031)
+
+The application can also enter Board Test from startup. After the latest flash, a carriage return recovered the banner even while the light was steady green. A literal Escape then closed the menu, and a follow-up probe was silent. For the driver, serial settings, entry cues and exit steps together, see [Recognize and enter Board Test](board-test-recovery.md#recognize-and-enter-board-test) and [Recover after a successful transfer](board-test-recovery.md#recover-after-a-successful-transfer).
 
 ## Diagnostic reads
 

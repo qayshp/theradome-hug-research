@@ -125,6 +125,8 @@ The countdown tests check both parts of the announcement, automatic timing, and 
 
 ## Live count-readout update
 
+For the build, transfer, and recovery instructions that follow from this test, see the [custom firmware guide](custom-firmware.md) and [Board Test recovery guide](board-test-recovery.md#recover-after-a-successful-transfer).
+
 On November 27, 2026, the checked Windows runner transferred the image built from `cbb99db` to the same EVO LH40. The owner heard “Theradome Revision 126.6” before the handshake. The pre-transfer USB session independently reported `126.6` and saved the diagnostic parameter display locally. After the loader reported readiness, the runner streamed 797 data records. The transfer log recorded 797 row acknowledgments, zero NAKs, one final `Success`, and HUG worker status `3`. After the subsequent calibration, the owner confirmed the short-press count announcement played quietly with laptop USB still connected. The selected setting and sound level were not measured. [Tested image and digest](#button-requested-count-follow-up)
 
 | Step | Light and speech reported by the owner |

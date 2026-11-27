@@ -2,7 +2,7 @@
 
 The physical unit was a Theradome EVO LH40. Its diagnostics banner said LH80 and its revision reply was 126.6. The archived HUG application image also identifies itself as LH80 and reports application revision 126. The installed flash bytes and board revision remain unverified. [Device and model evidence](device.md)
 
-[USB, clock and alarm details](usb-clock-details.md) records the serial exchanges and their limits. [Treatment analysis](treatment-analysis.md) gives the figures, likely charging windows and current-feedback trace. [Archive and firmware test evidence](research-evidence.md) distinguishes the two experimental builds and links their source.
+[USB, clock and alarm details](usb-clock-details.md) records the serial exchanges and their limits. [Treatment analysis](treatment-analysis.md) gives the figures, likely charging windows and current-feedback trace. [Archive and firmware test evidence](research-evidence.md) distinguishes the first two experimental builds and links the later tests.
 
 ## Live EVO LH40 tests
 
@@ -40,6 +40,8 @@ The follow-up warning and fault build at `a99c969` was tested on the host. It us
 The LH40 accepted all 797 rows of the refactored image at `50b1474`, and a fresh USB session returned revision `126.6`. The owner later reported that the helmet completed calibration and used the selected volume in ordinary use. The short-press count readout remained loud on the charger. The follow-up at `cbb99db` applies the selected gain to that readout. It passed 9,984 modeled cases, and the loader acknowledged all 797 records and returned `Success`. After the observed calibration, the owner heard the short-press count play quietly on laptop USB. The final USB display reported the same `126.6` and a set calibration-complete marker. [Live 797-row refactor](volume-settings.md#live-797-row-refactor) · [Count readout results](volume-settings.md#button-requested-count-follow-up) · [Live count-readout update](volume-settings.md#live-count-readout-update)
 
 ## Backup and recovery
+
+After the latest successful transfer, the application later responded in Board Test. The tested route back to ordinary operation was Escape, disconnect USB for “Ready for calibration,” then reconnect and wait for “Calibration complete.” A new read confirmed that EEPROM field 29 held `A5A5`. [Recovery after a successful transfer](board-test-recovery.md#recover-after-a-successful-transfer) · [Live observations](volume-settings.md#live-count-readout-update)
 
 The USB menu did not expose a command to export program flash or a complete EEPROM image. The parameter and treatment displays document this unit’s visible state. The HUG HEX is a separate, vendor-provided application image. It omits the bootloader, chip configuration words, unit EEPROM and voice storage. It cannot restore those regions. [Live tests](#live-evo-lh40-tests) · [Archive coverage](firmware.md)
 

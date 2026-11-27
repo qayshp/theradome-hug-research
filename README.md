@@ -2,7 +2,11 @@
 
 Why does a helmet set to **Silent** sometimes announce the remaining time at full volume? In the archived Theradome firmware, a single press during a session saves the current playback level, plays the requested time at full volume, then restores the level. The automatic time reminders use the effective volume at the time. A double press takes a different path and cycles the selection through Loud, Medium, Soft and Silent. [Voice trace and firmware addresses](model/volume.md)
 
-This is an independent investigation of HUG, Theradome’s desktop helmet updater, and the application firmware distributed with it. The device that prompted the investigation was an EVO LH40. The recovered firmware identifies itself as LH80. The published measurements and software models describe that particular file. Whether a given LH40 runs identical bytes is an open question. [USB and hardware evidence](docs/device.md)
+This is an independent investigation of HUG, Theradome’s desktop helmet updater, and the application firmware distributed with it. The recovered firmware identifies itself as LH80, and the models use that archived file. Live updates and recovery were tested on one EVO LH40 that reported application revision 126 and bootloader revision 6. The installed flash bytes and compatibility with other helmets remain unverified. [USB and hardware evidence](docs/device.md) · [Live update and recovery](docs/volume-settings.md#live-count-readout-update)
+
+## Build, flash and return to normal use
+
+Rebuild and check an image, verify the device, and prepare a local HUG bundle. After the transfer, check whether the firmware is still in diagnostics, then confirm calibration and normal operation. [Custom firmware guide](docs/custom-firmware.md) · [Board Test and post-flash recovery](docs/board-test-recovery.md)
 
 ## Follow the investigation
 
@@ -14,14 +18,14 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 | Where are the firmware subsystems and unresolved regions? | [Address index and subsystem maps](model/firmware-index.md) and [annotated PIC18 assembly](model/rebuild.asm). |
 | What does a press, light change, or voice announcement mean? | [Observation-to-state guide](model/README.md), [button and charger inputs](model/inputs.md), [charging-light waveform](model/indicator.md), and [voice behavior](model/volume.md). |
 | How does the firmware assemble spoken announcements? | [Voice clip directory, bank addresses, and spoken numbers](docs/voice-clips.md). |
-| What survives power loss? | [EEPROM storage map](model/eeprom.md) with the completed-session counter, 50-entry history, and bytewise write order. The volume selection lives in RAM. |
+| What survives power loss? | [EEPROM storage map](model/eeprom.md) with the completed-session counter, 50-entry history, and bytewise write order. The stock volume selection lives in RAM. The [volume overlay](docs/volume-settings.md) saves it in EEPROM. |
 | How closely does the reconstruction match? | [Build and verification](model/rebuild.md). The recovered assembly reproduces all 50,816 populated bytes. Host-side models also run individual paths against instructions read from the original HEX. |
 | What worked on a physical LH40, and what would recovery require? | [USB, clock, offline patch and recovery results](docs/verification.md). |
 | How did COM7, the clock and the alarms behave? | [Windows ARM64 setup, serial observations, and clock and alarm details](docs/usb-clock-details.md). |
 | What did the 50 treatment records show? | [Treatment record format, battery and current plots, and feedback analysis](docs/treatment-analysis.md). |
 | How does the volume patch handle prompts, low-battery warnings and faults? | [Experimental PIC18 volume settings overlay, build recipe and LH40 test results](docs/volume-settings.md). |
-| How can I build my own edit and prepare it for HUG? | [Custom application build and local HUG bundle guide](docs/custom-firmware.md). |
-| What evidence distinguishes the archive search and the two firmware tests? | [Search reproducibility and firmware test evidence](docs/research-evidence.md). |
+| How do I enter or exit diagnostics and finish a successful update? | [Board Test and post-flash recovery](docs/board-test-recovery.md). |
+| What evidence supports the archive search and firmware tests? | [Search reproducibility and firmware test evidence](docs/research-evidence.md). |
 
 ## Try it offline
 
