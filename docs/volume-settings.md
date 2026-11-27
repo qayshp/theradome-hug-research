@@ -20,7 +20,7 @@ With the refactored 797-row image installed, a short press while the helmet was 
 
 [The PIC18 assembly overlay](../model/volume-settings.asm) uses the same `18f66k22` assembler profile as the stock reconstruction. It assembles short hooks, a shared volume conversion in the stock button-volume area, and a separate block of routines. The original source and its address map remain available for comparison.
 
-The overlay, build script and verifier used for the earlier live test are in commit [`9945182`](https://github.com/qayshp/theradome-hug-research/commit/994518261dcfdc6da08d11030e52c03f6ecd04ab). Commit [`35f7ac3`](https://github.com/qayshp/theradome-hug-research/commit/35f7ac3f0999c10adb69a0c218f79165478e496c) extended that build to ordinary treatment prompts. The following table lists the hooks in the current offline build. The overlay is ordinary hand-editable PIC18 assembly. Microchip's XC8 compiler can also generate PIC18 code from C. A C routine here would need to fit the existing application's memory layout, register and calling conventions, and bootloader image layout. The C files under `model/` are host-side behavior models. [Microchip XC8 compiler](https://www.microchip.com/en-us/tools-resources/develop/mplab-xc-compilers/xc8) · [Stock assembly reconstruction](../model/rebuild.md)
+The overlay, build script and verifier used for the earlier live test are in commit [`9945182`](https://github.com/qayshp/theradome-hug-research/commit/994518261dcfdc6da08d11030e52c03f6ecd04ab). Commit [`35f7ac3`](https://github.com/qayshp/theradome-hug-research/commit/35f7ac3f0999c10adb69a0c218f79165478e496c) extended that build to ordinary treatment prompts. The following table lists the hooks in the count-readout build. The overlay is ordinary hand-editable PIC18 assembly. Microchip's XC8 compiler can also generate PIC18 code from C. A C routine here would need to fit the existing application's memory layout, register and calling conventions, and bootloader image layout. The C files under `model/` are host-side behavior models. [Microchip XC8 compiler](https://www.microchip.com/en-us/tools-resources/develop/mplab-xc-compilers/xc8) · [Stock assembly reconstruction](../model/rebuild.md)
 
 | Stock address | Purpose |
 | --- | --- |
@@ -58,7 +58,7 @@ The [build script](../model/tools/build_volume_settings.py) invokes gpasm for th
 
 Two independent builds of the count-readout follow-up produced the same 112,390-byte HEX with SHA-256 `f8b3a0e4828560ea2ca38e48c1a8ebf2de6105dc551f8d9a9d3378a58bf03396`. It adds one hook using existing routines and keeps the 797 data records across `0x1900–0xE03F`. A binary comparison with the installed `50b1474` image found differences at `0x7428` and `0x742A`, the two modified bytes of the call target. [Count readout](#button-requested-treatment-count) · [Assembly overlay](../model/volume-settings.asm)
 
-The verifier passed 5,376 new short-press cases across 14 dispatch states, including 768 cases for ordinary charging and charged states. The checks compare the speech sequence, selected and restored gain, caller and playback registers, and treatment-counter EEPROM operations. The 4,608 existing comparisons against `a99c969` also passed, for 9,984 cases across the full run. The follow-up is an offline candidate. [Volume verifier](../model/check_volume_settings.py)
+The verifier passed 5,376 new short-press cases across 14 dispatch states, including 768 cases for ordinary charging and charged states. The checks compare the speech sequence, selected and restored gain, caller and playback registers, and treatment-counter EEPROM operations. The 4,608 existing comparisons against `a99c969` also passed, for 9,984 cases across the full run. The same image was used for the live transfer. [Volume verifier](../model/check_volume_settings.py) · [Live count-readout update](#live-count-readout-update)
 
 ### 797-row volume refactor
 
@@ -122,6 +122,19 @@ The [offline verifier at `35f7ac3`](https://github.com/qayshp/theradome-hug-rese
 | **Total** | **2,096** |
 
 The countdown tests check both parts of the announcement, automatic timing, and gain after the report. The treatment-prompt tests compare the speech requests, player inputs, RAM, registers and EEPROM operations. The start and completion calls reuse the stock numbered-announcement helper with its original distinct arguments, `0x24` and `0x23`. The tests confirm its treatment-count read and its stock behavior when the count is uninitialized, including a write of zero. The volume wrapper applies the selected gain for playback and restores the incoming setting afterward.
+
+## Live count-readout update
+
+On November 27, 2026, the checked Windows runner transferred the image built from `cbb99db` to the same EVO LH40. The owner heard “Theradome Revision 126.6” before the handshake. The pre-transfer USB session independently reported `126.6` and saved the diagnostic parameter display locally. After the loader reported readiness, the runner streamed 797 data records. The transfer log recorded 797 row acknowledgments, zero NAKs, one final `Success`, and HUG worker status `3`. Those results establish acceptance by the loader. A post-update playback check is separate. [Tested image and digest](#button-requested-count-follow-up)
+
+| Step | Light and speech reported by the owner |
+| --- | --- |
+| USB connected before the handshake | Steady green at rest. A short press spoke the treatment count, and a long press spoke the revision. During each announcement the light briefly showed yellow and returned to green. |
+| Handshake accepted | Steady orange appeared when the handshake completed. The owner saw no further change when transfer began or while it was in progress. |
+| Loader reported `Success` | The light went out briefly, showed several colors, and returned to steady orange. The helmet stayed silent. No new diagnostic session had started. |
+| USB unplugged once, with the switch untouched | The light blinked red at about two flashes per second. |
+
+Neither charged-state button handler explicitly requests yellow for speech. A change in the charging indication could account for the brief yellow. Charge-status inputs and charging current were unmeasured during playback. Board Test requests steady red and green together, which fits the first orange seen at the handshake. The origin of the steady orange during and after transfer remains unverified. The LH40/LH80 manual lists a firmware update as one possible reason for a blinking red reset indication. For a system error it describes one brief switch press with the helmet unplugged to check for “System resumed.” [Charged-state button handlers](../model/rebuild.asm#L10170) · [Indicator model](../model/indicator.md) · [Board Test indicator](../model/rebuild.asm#L1489) · [Theradome owner’s manual, pp. 16 and 30](https://device.report/m/f7d6c2daf50f49bd67078d4ed2da62448f70583a10c274b357377daf5ef15b9a) · [Theradome system-error instructions](https://theradome.com/a/docs/troubleshooting/system-error-message)
 
 ## Live 797-row refactor
 
