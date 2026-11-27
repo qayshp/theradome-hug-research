@@ -125,7 +125,7 @@ The countdown tests check both parts of the announcement, automatic timing, and 
 
 ## Live count-readout update
 
-On November 27, 2026, the checked Windows runner transferred the image built from `cbb99db` to the same EVO LH40. The owner heard “Theradome Revision 126.6” before the handshake. The pre-transfer USB session independently reported `126.6` and saved the diagnostic parameter display locally. After the loader reported readiness, the runner streamed 797 data records. The transfer log recorded 797 row acknowledgments, zero NAKs, one final `Success`, and HUG worker status `3`. Those results establish acceptance by the loader. A post-update playback check is separate. [Tested image and digest](#button-requested-count-follow-up)
+On November 27, 2026, the checked Windows runner transferred the image built from `cbb99db` to the same EVO LH40. The owner heard “Theradome Revision 126.6” before the handshake. The pre-transfer USB session independently reported `126.6` and saved the diagnostic parameter display locally. After the loader reported readiness, the runner streamed 797 data records. The transfer log recorded 797 row acknowledgments, zero NAKs, one final `Success`, and HUG worker status `3`. After the subsequent calibration, the owner confirmed the short-press count announcement played quietly with laptop USB still connected. The selected setting and sound level were not measured. [Tested image and digest](#button-requested-count-follow-up)
 
 | Step | Light and speech reported by the owner |
 | --- | --- |
@@ -136,25 +136,41 @@ On November 27, 2026, the checked Windows runner transferred the image built fro
 | Brief switch press while unplugged and off-head | The blink appeared to restart with the press and continued at about two flashes per second. The helmet stayed silent. |
 | Reconnected to laptop USB using the same data cable, with the switch untouched | The light returned to steady orange. No new diagnostic session was running. |
 | One brief switch press with laptop USB connected | The light stayed steady orange. The owner heard no speech and saw no laser emission. |
+| After roughly 20 minutes connected, still steady orange | COM7 stayed quiet during a passive listen. A carriage return drew a response. A second probe returned `BOARD TEST` and its menu hint, confirming the application was serving diagnostics during the orange state. |
+| During the serial probe, with no new switch press or cable movement | The owner heard “Theradome Revision 126.6,” saw the lasers come on briefly and go out, and then saw steady green. No calibration announcement was reported during that observation. |
+| Read-only check while the light was steady green | The application still returned `BOARD TEST` and offered the `D` parameter display. The host saved that display locally and closed the port. |
+| USB unplugged again, with the switch untouched | The light stayed steady green through the follow-up observation. The owner heard no speech and saw no laser activity. |
+| Laptop USB reconnected, with the switch untouched | The light remained steady green, with no audible response or laser activity. Board Test still answered. |
+| Board Test Escape command | The host confirmed the banner, sent the menu's documented Escape once, then repeated the earlier carriage-return query. The reply went from a menu banner to silence. |
+| After Escape, with laptop USB still connected | The steady green light went out and the switch began pulsing yellow at about one flash every two seconds. There was no button press or speech. |
+| USB unplugged after Escape, with the switch untouched | The helmet said “Ready for calibration.” The yellow pulse became a shorter flash, still about once every two seconds. |
+| Same laptop USB reconnected, with the switch untouched | The helmet said “Calibration started,” briefly drove the lasers, said “Calibration complete,” and returned to steady green. |
+| One brief press after calibration, while USB remained connected | The owner confirmed that the treatment-count announcement played quietly. |
+| Final USB read after the volume check | A long press spoke the revision at full volume. A new Board Test session reported `126.6` and returned the parameter display with field 29 set to `A5A5`. The host saved the display and sent Escape. A final carriage-return probe received no reply, then the host closed COM7. |
 
 Neither charged-state button handler explicitly requests yellow for speech. A change in the charging indication could account for the brief yellow. Charge-status inputs and charging current were unmeasured during playback. Board Test requests steady red and green together, which fits the first orange seen at the handshake. The origin of the steady orange during and after transfer remains unverified. The LH40/LH80 manual lists a firmware update as one possible reason for a blinking red reset indication. For a system error it describes one brief switch press with the helmet unplugged to check for “System resumed.” [Charged-state button handlers](../model/rebuild.asm#L10170) · [Indicator model](../model/indicator.md) · [Board Test indicator](../model/rebuild.asm#L1489) · [Theradome owner’s manual, pp. 16 and 30](https://device.report/m/f7d6c2daf50f49bd67078d4ed2da62448f70583a10c274b357377daf5ef15b9a) · [Theradome system-error instructions](https://theradome.com/a/docs/troubleshooting/system-error-message)
 
-The unplugged press did not produce the documented acknowledgment. The archived firmware has several red-only patterns and distinguishes electrical switch activity from a completed button event. A change in the blink phase is insufficient to identify the state or gesture. The plugged-in press yielded no observable response, although a press can launch diagnostics if Board Test is active. No serial traffic was captured during that press. The earlier wait on laptop USB is an observed interval. The archived calibration paths check saved markers and charger inputs, and HUG's guidance for repeated calibration speech refers to a steady green light. Those sources give no 24-minute recovery interval. [Button-event recognition](../model/inputs.md#from-switch-edges-to-event-codes) · [Calibration prerequisites](../model/rebuild.asm#L6791-L6822) · [HUG help](../java/com/screens/FirmwareUpdateMenu.java#L432)
+The unplugged press did not produce the documented acknowledgment. The archived firmware has several red-only patterns and distinguishes electrical switch activity from a completed button event. A change in the blink phase is insufficient to identify the state or gesture. The plugged-in press yielded no observable response, although a press can launch diagnostics if Board Test is active. No serial traffic was captured during that press. The later serial banner establishes that the application was responsive after this transfer. The host sent only the carriage-return probes before the initial transition to green. Board Test can drive the lasers, play the revision and select steady green as part of its test sequence. The LED and speech observations leave the exact trigger and order of internal events unresolved. The first post-transfer `D` read while green still reached Board Test and showed the calibration-complete field at `FFFF`. The later explicit Escape, unplug and reconnect sequence then produced all three calibration announcements. The archived calibration paths check saved markers and charger inputs without a documented 24-minute waiting period. [Button-event recognition](../model/inputs.md#from-switch-edges-to-event-codes) · [Board Test switch dispatch](../model/rebuild.asm#L6176-L6224) · [Calibration prerequisites](../model/rebuild.asm#L6791-L6822) · [HUG help](../java/com/screens/FirmwareUpdateMenu.java#L432)
 
 ### Calibration snapshots across updates
 
 The first capture predates experimental firmware. The second followed the first flash, `9945182`, and its observed calibration. There was an intervening transfer of `35f7ac3` with a revision read and no captured calibration parameters. The runner captured the third column after the owner reported completing calibration on `50b1474` and before transferring `cbb99db`. The snapshots show stored values and span updates and use between captures. [First update parameter comparison](#eeprom-display-before-the-update-and-after-calibration) · [Intervening transfer](#expanded-treatment-prompt-update)
 
-| Field | Original read | After `9945182` calibration | After `50b1474` calibration, before `cbb99db` |
-| --- | ---: | ---: | ---: |
-| 20 · Battery-voltage offset | −4 | −13 | 1 |
-| 21 · Internal-voltage measurement offset | −30 | −13 | −86 |
-| 22 · Temperature offset | −1 | −1 | −1 |
-| 23 · Laser-current feedback offset | −25 | −25 | −22 |
-| 24 · Proximity-sensor offset | −5 | −6 | −4 |
-| Calibration temperature | 23.50 °C | 22.82 °C | 20.88 °C |
+| Field | Original read | After `9945182` calibration | After `50b1474` calibration, before `cbb99db` | After `cbb99db`, before calibration | After `cbb99db` calibration |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20 · Battery-voltage offset | −4 | −13 | 1 | 1 | 0 |
+| 21 · Internal-voltage measurement offset | −30 | −13 | −86 | −86 | −79 |
+| 22 · Temperature offset | −1 | −1 | −1 | 5 | −1 |
+| 23 · Laser-current feedback offset | −25 | −25 | −22 | −21 | −24 |
+| 24 · Proximity-sensor offset | −5 | −6 | −4 | 24 | −5 |
+| Calibration temperature | 23.50 °C | 22.82 °C | 20.88 °C | 23.48 °C | 23.48 °C |
+| 29 · Calibration-complete marker | `A5A5` | `A5A5` | `A5A5` | `FFFF` | `A5A5` |
 
-The manufacturing flags in fields 25–31 matched across all three reads, including `A5A5` in the calibration-complete field 29. Both install-date fields in the latest two reads reported November 26, 2026. The raw captures are retained locally. [Calibration sequence and saved values](../model/firmware-io-map.md#how-the-built-in-calibration-runs)
+The manufacturing flags in fields 25–31 matched across the first three reads. In the fourth read, only field 29 differed, and both install-date fields advanced from November 26 to November 27, 2026. The last column was read after the owner heard “Calibration complete.” Field 29 returned to `A5A5`, the other manufacturing flags matched, and the two dates stayed at November 27. The raw captures are retained locally. [Calibration sequence and saved values](../model/firmware-io-map.md#how-the-built-in-calibration-runs)
+
+One archived startup path writes the upgrade date and clears field 29 before Board Test. A passing Board Test can write the factory date and select steady green while its menu stays active. That combination fits the fourth snapshot. The session did not capture the startup state or manufacturing flags before the test ran, so the exact route into Board Test remains an inference. [Startup writes](../model/rebuild.asm#L6706-L6717) · [Board Test pass handler](../model/rebuild.asm#L5937-L5959)
+
+The archived menu's Escape branch closes serial and returns to its caller. The application can request a two-channel pulse both while checking the calibration marker and after it reaches calibration-ready. With an erased marker, the marker-check path waits for the charger inputs to indicate no power before it announces that calibration is ready. A blinking yellow light alone cannot distinguish these two phases. [Menu exit](../model/rebuild.asm#L6217-L6232) · [Calibrating states](../model/firmware-control-map.md#state-groups-and-landmarks) · [Ready announcement gate](../model/rebuild.asm#L6791-L6822)
 
 ## Live 797-row refactor
 
