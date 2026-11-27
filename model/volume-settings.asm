@@ -10,6 +10,7 @@ countdown_report        equ     0xCA60
 countdown_speech_tail   equ     0xCACC
 play_clip               equ     0x94F2
 treatment_count         equ     0xCC56
+status_dispatch         equ     0x83EC
 count_phrase_argument   equ     0x0D4
 clip_number             equ     0x081
 wreg_address            equ     0xFE8
@@ -56,12 +57,47 @@ eeadrh_access           equ     0x63
         org     0x5F2A
         call    volume_count_prompt, 0
 
+; The ordinary stop notice is also used after a waiting-state timeout.
+        org     0x5F46
+        call    volume_prompt_clip, 0
+        org     0x5F52
+        call    volume_prompt_clip, 0
+
+; Optional variant clip in the failed-check waiting state.
+        org     0x6306
+        call    volume_fault_prompt, 0
+
         org     0x72AC
         goto    volume_cycle
 
 ; Idle hold still clears the temporary gain at 0x732E.
         org     0x7330
         nop
+
+; The shared check saves and later restores the live gain at its stock sites.
+; Start at the selection for advisories. Apply the floor only on fault branches.
+        org     0x80C4
+        goto    volume_status_entry
+
+; Replace the upper-battery fault's second full-gain reset.
+        org     0x80CE
+        call    volume_fault_floor, 0
+
+; The first clip sets the gain for the rest of each blocking sequence.
+        org     0x8122
+        call    volume_status_fault_clip, 0
+        org     0x81C4
+        call    volume_status_fault_clip, 0
+        org     0x81DE
+        call    volume_status_fault_clip, 0
+        org     0x8240
+        call    volume_status_fault_clip, 0
+        org     0x8274
+        call    volume_status_fault_clip, 0
+        org     0x8316
+        call    volume_status_fault_clip, 0
+        org     0x838C
+        call    volume_status_fault_clip, 0
 
 ; Both reports reach this block only after deciding to speak.
         org     0xCAC8
@@ -127,8 +163,7 @@ volume_auto_report:
 ; The preceding foreground check has already used this byte to save gain.
         movff   live_gain, saved_auto_gain
         call    countdown_report, 0
-        movff   saved_auto_gain, live_gain
-        return  0
+        bra     volume_prompt_restore
 
 volume_speech:
         rcall   volume_apply
@@ -159,6 +194,7 @@ volume_prompt_clip:
 ; The stock foreground check also uses this location to save the gain.
         movff   live_gain, saved_auto_gain
         rcall   volume_apply
+volume_play_prompt:
         movlb   0
         movff   clip_number, wreg_address
         call    play_clip, 0
@@ -174,4 +210,33 @@ volume_count_prompt:
         movff   count_phrase_argument, wreg_address
         call    treatment_count, 0
         bra     volume_prompt_restore
+
+volume_status_entry:
+; Preserve the stock loud fallback if the selection is out of range.
+        clrf    0xB9, 1
+        rcall   volume_apply
+        goto    status_dispatch
+
+volume_fault_floor:
+; Larger right-shift counts mean less output. Soft is three shifts.
+        movlb   2
+        movlw   0x03
+        cpfsgt  0xB9, 1
+        return  0
+        movwf   0xB9, 1
+        return  0
+
+volume_status_fault_clip:
+; Preserve the outer status routine's saved gain. Its exit restores it.
+        rcall   volume_fault_floor
+        movlb   0
+        movff   clip_number, wreg_address
+        goto    play_clip
+
+volume_fault_prompt:
+; This prompt runs after the shared check, with its own save and restore.
+        movff   live_gain, saved_auto_gain
+        rcall   volume_apply
+        rcall   volume_fault_floor
+        bra     volume_play_prompt
         end

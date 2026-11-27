@@ -13,12 +13,13 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 | What exactly is in the HEX? | [Firmware inventory](docs/firmware.md), [original Intel HEX](outputs/myTheradome-LH80-labeled.hex), [decoded application binary](outputs/myTheradome-LH80-labeled.bin), and [rebuildable PIC18 assembly](model/rebuild.asm). |
 | Where are the firmware subsystems and unresolved regions? | [Address index and subsystem maps](model/firmware-index.md) and [annotated PIC18 assembly](model/rebuild.asm). |
 | What does a press, light change, or voice announcement mean? | [Observation-to-state guide](model/README.md), [button and charger inputs](model/inputs.md), [charging-light waveform](model/indicator.md), and [voice behavior](model/volume.md). |
+| How does the firmware assemble spoken announcements? | [Voice clip directory, bank addresses, and spoken numbers](docs/voice-clips.md). |
 | What survives power loss? | [EEPROM storage map](model/eeprom.md) with the completed-session counter, 50-entry history, and bytewise write order. The volume selection lives in RAM. |
 | How closely does the reconstruction match? | [Build and verification](model/rebuild.md). The recovered assembly reproduces all 50,816 populated bytes. Host-side models also run individual paths against instructions read from the original HEX. |
 | What worked on a physical LH40, and what would recovery require? | [USB, clock, offline patch and recovery results](docs/verification.md). |
 | How did COM7, the clock and the alarms behave? | [Windows ARM64 setup, serial observations, and clock and alarm details](docs/usb-clock-details.md). |
 | What did the 50 treatment records show? | [Treatment record format, battery and current plots, and feedback analysis](docs/treatment-analysis.md). |
-| Can the selected volume survive restart and apply to ordinary treatment prompts and countdowns? | [Experimental PIC18 volume settings overlay, build recipe and LH40 test results](docs/volume-settings.md). |
+| How does the volume patch handle prompts, low-battery warnings and faults? | [Experimental PIC18 volume settings overlay, build recipe and LH40 test results](docs/volume-settings.md). |
 | How can I build my own edit and prepare it for HUG? | [Custom application build and local HUG bundle guide](docs/custom-firmware.md). |
 | What evidence distinguishes the archive search and the two firmware tests? | [Search reproducibility and firmware test evidence](docs/research-evidence.md). |
 

@@ -12,16 +12,19 @@ SOURCE = ROOT / "model/volume-settings.asm"
 STOCK_SHA256 = "40caa7fd679e70205a8acc923f5586484884060e9ef4eb0cfaa4c4d23f120c69"
 APPLICATION_START = 0x1900
 EXTENSION_START = 0xDF80
-# Exclusive end of the flash rows already used by the ready-prompt image.
-APPLICATION_END = 0xE040
+# Exclusive end of the offline candidate, including its additional flash row.
+APPLICATION_END = 0xE080
 RECORD_SIZE = 64
 HOOKS = (
     (0x5358, 4),
     (0x5D86, 4), (0x5D9A, 4),
     (0x5DBE, 4), (0x5DCA, 4), (0x5DE2, 4),
     (0x5E26, 4), (0x5E96, 4), (0x5EA2, 4), (0x5EB4, 4),
-    (0x5F24, 4), (0x5F2A, 4),
-    (0x72AC, 4), (0x7330, 2), (0xCAC8, 4),
+    (0x5F24, 4), (0x5F2A, 4), (0x5F46, 4), (0x5F52, 4),
+    (0x6306, 4), (0x72AC, 4), (0x7330, 2),
+    (0x80C4, 4), (0x80CE, 4), (0x8122, 4), (0x81C4, 4), (0x81DE, 4),
+    (0x8240, 4), (0x8274, 4), (0x8316, 4), (0x838C, 4),
+    (0xCAC8, 4),
 )
 
 
@@ -39,7 +42,7 @@ def merge(original, overlay):
         raise ValueError("overlay must cover the declared hooks and its own extension")
     end = max(extension) + 1
     if end % 2 or end > APPLICATION_END or extension != set(range(EXTENSION_START, end)):
-        raise ValueError("extension must be contiguous, word-aligned and within the existing application rows")
+        raise ValueError("extension must be contiguous, word-aligned and within the declared application rows")
     return original | overlay
 
 

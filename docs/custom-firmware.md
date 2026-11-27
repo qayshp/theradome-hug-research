@@ -24,7 +24,7 @@ python3 -B -m model.tools.build_volume_settings "$build_dir/volume-settings.hex"
 python3 -B model/check_volume_settings.py "$build_dir/volume-settings.hex"
 ```
 
-The current volume overlay yields the SHA-256 digest `20acb2e12643db82b9bfc48df288261f0b7bfa2d5bb985470416b00c4cf9d68c`. To reproduce the earlier live-tested image, use commit `9945182` in a separate checkout. The builder checks the original application digest and permits the declared hook ranges and a contiguous extension through `0xE03F`. The verifier checks the EEPROM preference, both countdown paths and ordinary treatment prompts. [Overlay and verifier](volume-settings.md#offline-build-and-test)
+These commands build and verify the offline warning and fault overlay in this checkout. Its last HEX row ends at `0xE07F`, beyond the HUG preparer's tested range. For the image used in the expanded physical update and the preparation steps below, run the build in a separate checkout at commit `35f7ac3`. Its digest is `20acb2e12643db82b9bfc48df288261f0b7bfa2d5bb985470416b00c4cf9d68c`. Commit `9945182` reproduces the first installed volume image. [Offline build and tests](volume-settings.md#offline-build-and-test) · [Expanded physical update](volume-settings.md#expanded-treatment-prompt-update)
 
 For a small same-size rewrite, edit `model/rebuild.asm` in a separate checkout. An offline example is the immediate operand in the hexadecimal-digit formatter at application byte address `0xDED8`. Changing `0x37` to `0x57` there changes the alphabetic digits in that formatter from uppercase to lowercase. This example changes display formatting and preserves the application address layout. From that checkout, assemble the edit and encode the result using the existing HUG-layout packer.
 
@@ -42,7 +42,7 @@ The difference report lists changed, added and missing byte ranges. For the disp
 
 Install the known Windows HUG release from the vendor link in the [discovery log](discovery.md). Find the installed `HugUpgrade.exe` and the adjacent `jre` directory. The preparation tool takes **the installed launcher**, which contains HUG's JAR, and verifies its digest and original firmware resource. The tool prepares a new local JAR and prints the application range and the SHA-256 digests of the HEX and the result.
 
-Use the actual paths for your copy of HUG and your build directory. From the repository root in PowerShell:
+Use the actual paths for your copy of HUG and the directory containing the image built at `35f7ac3`. The preparer accepts application images within the tested range through `0xE03F`. From the repository root in PowerShell:
 
 ```powershell
 $hugDir = 'C:\path\to\installed\HUG'

@@ -106,10 +106,16 @@ class Runner:
             skip = False
             if op == 0x00:  # NOP
                 continue
-            if op == 0x12:
+            if op == 0x12 or op >> 8 == 0x0C:
+                if op >> 8 == 0x0C:  # RETLW
+                    self.w = op & 255
                 if not stack:
                     return
                 pc = stack.pop()
+            elif op == 0x09:  # TBLRD*+
+                pointer = int.from_bytes(self.ram[0xFF6:0xFF9], "little")
+                self.ram[0xFF5] = self.image[pointer]
+                self.ram[0xFF6:0xFF9] = ((pointer + 1) & 0xFFFFFF).to_bytes(3, "little")
             elif op >> 8 in (0xEC, 0xEF):
                 target = ((self.word(pc) & 4095) << 9) | ((op & 255) << 1)
                 if op >> 8 == 0xEC:
@@ -133,6 +139,8 @@ class Runner:
                 skip = bool(v & bit) == (op >> 12 == 10)
             elif op >> 8 == 1:
                 self.bank = op & 15
+            elif op >> 8 == 0x0D:  # MULLW
+                self.putpair(0xFF3, self.w * (op & 255))
             elif op >> 8 == 14:
                 self.w = op & 255
             elif op >> 8 == 10:
@@ -146,8 +154,12 @@ class Runner:
             elif op & 0xFE00 == 0x6A00:
                 self.store(f, 0)
                 self.z(0)
+            elif op & 0xFE00 == 0x6800:  # SETF
+                self.store(f, 0xFF)
             elif op & 0xFE00 == 0x6400:
                 skip = v > self.w
+            elif op & 0xFE00 == 0x6600:  # TSTFSZ
+                skip = v == 0
             elif byte_op == 0x3800:
                 swapped = ((v & 15) << 4) | (v >> 4)
                 if op & 0x200:
@@ -162,8 +174,8 @@ class Runner:
             elif byte_op in (0x5000, 0x1800, 0x1000, 0x1400):
                 result = {0x5000: v, 0x1800: v ^ self.w,
                           0x1000: v | self.w, 0x1400: v & self.w}[byte_op]
-            elif byte_op in (0x0400, 0x2800, 0x2000):
-                change = {0x0400: -1, 0x2800: 1, 0x2000: self.w + (self.status & 1)}[byte_op]
+            elif byte_op in (0x0400, 0x2800, 0x2000, 0x2400):
+                change = {0x0400: -1, 0x2800: 1, 0x2000: self.w + (self.status & 1), 0x2400: self.w}[byte_op]
                 result = v + change
                 self.carry(result >= 0 if byte_op == 0x0400 else result > 255)
             elif byte_op in (0x5C00, 0x5800):

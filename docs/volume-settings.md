@@ -4,13 +4,19 @@ This experimental build uses HUG's archived revision-126 application as its base
 
 Both a requested countdown and the automatic 15-, 10- and 5-minute announcements use the selected level for the spoken number and following phrase. The existing countdown schedule determines when the automatic report runs. Each report restores the previous effective gain afterward. The patch also keeps the selected level through the archived idle-hold path that used to clear it.
 
-The ready prompt, off-head reminder, resume, numbered start and successful completion announcements also use the selected level. In the archived application, some states can set the live gain to full while the selected index remains available. Ordinary treatment speech uses that live gain, so it can sound loud between countdowns that apply the selection. The overlay applies selected gain around the stock clip or numbered announcement and restores the incoming gain on return. The stock calls supply clip identifiers and their ordering. The words attributed to individual clips are inferred from the call sites and listening observations because the recordings are in separate voice flash. The shared subsystem check still controls its own full-volume warnings and status clips. [Ready and start calls](../model/rebuild.asm#L7496-L7553) · [Pause and resume calls](../model/rebuild.asm#L7616-L7651) · [Completion calls](../model/rebuild.asm#L7695-L7703) · [Shared gain override](../model/rebuild.asm#L11541-L11552)
+The ready prompt, off-head reminder, resume, numbered start and successful completion announcements also use the selected level. In the archived application, some states can set the live gain to full while the selected index remains available. Ordinary treatment speech uses that live gain, so it can sound loud between countdowns that apply the selection. The overlay applies selected gain around the stock clip or numbered announcement and restores the incoming gain on return. The stock calls supply clip identifiers and their ordering. The words attributed to individual clips are inferred from the call sites and listening observations because the recordings are in separate voice flash. [Ready and start calls](../model/rebuild.asm#L7496-L7553) · [Pause and resume calls](../model/rebuild.asm#L7616-L7651) · [Completion calls](../model/rebuild.asm#L7695-L7703)
+
+## Battery warnings, manual abort and blocking faults
+
+The follow-up uses the selected level for a low-battery warning that lets treatment continue and for the announcement after a manual abort. Silent therefore mutes both. A fault that prevents or stops treatment uses at least Soft. It uses the selected level when that level is Soft, Medium or Loud. Only Silent gets raised to Soft for a fault. This is a digital playback setting. Audibility depends on the recording, speaker and surroundings.
+
+The battery status check can warn once and allow treatment to continue, or reject the current operation. The same low-voltage band can select either path. The controller also checks a separate internal supply, temperature and laser-current feedback. Applying volume by branch allows the nonblocking warning to use Silent and the blocking alert to use a nonzero gain. The same ordinary abort notice follows a manual stop and other exits through the stop state, such as a paused-treatment timeout. The notice uses the selection on each of those paths. If a check fails, its preceding fault alert still uses the Soft minimum. Nonblocking temperature advisories in the shared check use the selection as well. [Battery warning branches](../model/rebuild.asm#L11615-L11668) · [Controller and sensor checks](../model/firmware-io-map.md#analog-acquisition-and-charger-feedback) · [Stock stop state](../model/rebuild.asm#L7705-L7720)
 
 ## Assembly and storage
 
-[The PIC18 assembly overlay](../model/volume-settings.asm) uses the same `18f66k22` assembler profile as the stock reconstruction. It assembles 15 short hooks and a separate block of routines. The original source and its address map remain available for comparison.
+[The PIC18 assembly overlay](../model/volume-settings.asm) uses the same `18f66k22` assembler profile as the stock reconstruction. It assembles short hooks and a separate block of routines. The original source and its address map remain available for comparison.
 
-The overlay, build script and verifier used for the earlier live test are in commit [`9945182`](https://github.com/qayshp/theradome-hug-research/commit/994518261dcfdc6da08d11030e52c03f6ecd04ab). The current source extends that build to ordinary treatment prompts. The overlay is ordinary hand-editable PIC18 assembly. Microchip's XC8 compiler can also generate PIC18 code from C. A C routine here would need to fit the existing application's memory layout, register and calling conventions, and bootloader image layout. The C files under `model/` are host-side behavior models. [Microchip XC8 compiler](https://www.microchip.com/en-us/tools-resources/develop/mplab-xc-compilers/xc8) · [Stock assembly reconstruction](../model/rebuild.md)
+The overlay, build script and verifier used for the earlier live test are in commit [`9945182`](https://github.com/qayshp/theradome-hug-research/commit/994518261dcfdc6da08d11030e52c03f6ecd04ab). Commit [`35f7ac3`](https://github.com/qayshp/theradome-hug-research/commit/35f7ac3f0999c10adb69a0c218f79165478e496c) extended that build to ordinary treatment prompts. The following table lists the hooks in the current offline build. The overlay is ordinary hand-editable PIC18 assembly. Microchip's XC8 compiler can also generate PIC18 code from C. A C routine here would need to fit the existing application's memory layout, register and calling conventions, and bootloader image layout. The C files under `model/` are host-side behavior models. [Microchip XC8 compiler](https://www.microchip.com/en-us/tools-resources/develop/mplab-xc-compilers/xc8) · [Stock assembly reconstruction](../model/rebuild.md)
 
 | Stock address | Purpose |
 | --- | --- |
@@ -20,8 +26,12 @@ The overlay, build script and verifier used for the earlier live test are in com
 | `0x5E26` | Save and restore the effective gain around the automatic report. |
 | `0x5E96`, `0x5EA2`, `0x5EB4` | Apply selected gain to the two resume clips and the off-head reminder while paused. |
 | `0x5F24`, `0x5F2A` | Apply selected gain to the optional successful-completion clip and the numbered completion announcement. |
+| `0x5F46`, `0x5F52` | Apply selected gain to the two ordinary abort clips. |
+| `0x6306` | Apply the Soft floor to the optional clip in the failed-check waiting state. |
 | `0x72AC` | Advance the selected level, persist it, then run the original feedback handler. |
 | `0x7330` | Preserve the selected index on the idle hold. |
+| `0x80C4` | Use selected gain after the shared check has saved the incoming gain. |
+| `0x80CE`, `0x8122`, `0x81C4`, `0x81DE`, `0x8240`, `0x8274`, `0x8316`, `0x838C` | Apply the Soft floor before the first clip of each blocking battery, controller-supply, temperature or laser-current sequence. The shared check restores the incoming gain at its original exit. |
 | `0xCAC8` | Apply the selected gain when a countdown report reaches its speech path. |
 
 The preference uses **data EEPROM byte `0xC0`**, the low byte of word slot `0x60`. The four one-byte codes are `C3`, `C6`, `C9` and `CC`. The reader accepts only those codes. Saving uses one byte write and keeps the adjacent byte intact. Only the volume-cycle path writes the preference. The archived application has no identified ordinary use of that slot. The treatment ring starts at word `0x64`, and a whole-EEPROM erase would clear the preference. The physical unit and the separate bootloader have not been checked for their use of this EEPROM range. [Archived EEPROM map](../model/eeprom.md)
@@ -36,13 +46,31 @@ python3 -B -m model.tools.build_volume_settings "$build_dir/volume-settings.hex"
 python3 -B model/check_volume_settings.py "$build_dir/volume-settings.hex"
 ```
 
-The [build script](../model/tools/build_volume_settings.py) invokes gpasm for the sparse overlay, checks the stock HEX digest and address range, and restricts changes to the 15 hooks and a contiguous extension through `0xE03F`. The script re-encodes the merged image using the vendor's 64-byte Intel HEX rows, per-record checksums and CRLF line endings. The stock image also round-trips through the encoder byte for byte. [Intel HEX format](https://onlinedocs.microchip.com/oxy/GUID-C3F66E96-7CDD-47A0-9AB7-9068BADB46C0-en-US-4/GUID-DF9E479D-6BA8-49E3-A2A5-997BBA49D34D.html)
+The [build script](../model/tools/build_volume_settings.py) invokes gpasm for the sparse overlay, checks the stock HEX digest and address range, and restricts changes to declared hooks and a contiguous extension. The script re-encodes the merged image using the vendor's 64-byte Intel HEX rows, per-record checksums and CRLF line endings. The stock image also round-trips through the encoder byte for byte. [Intel HEX format](https://onlinedocs.microchip.com/oxy/GUID-C3F66E96-7CDD-47A0-9AB7-9068BADB46C0-en-US-4/GUID-DF9E479D-6BA8-49E3-A2A5-997BBA49D34D.html)
 
-Two independent builds of the expanded image produced the same 112,390-byte HEX with SHA-256 `20acb2e12643db82b9bfc48df288261f0b7bfa2d5bb985470416b00c4cf9d68c`. It changes 33 bytes within the stock application. The single-clip helper occupies 22 bytes, and the 20-byte numbered-announcement wrapper fits in the remaining space through `0xE03F`. That keeps the 797 data rows and address range of the earlier installed image, with 60 changed byte values across the equal-sized images. The earlier ready-only image ended its code at `0xE02B` and carried 20 bytes of padding in the last row.
+### Results for the offline warning and fault build
+
+Two builds produced byte-identical 112,531-byte HEX files with SHA-256 `aef971a11b97101bdeee421517cab60e516df8bf0b1ff65c81ff054c8e2f2cfd`. The current overlay changes 61 stock bytes across 27 hooks and adds 230 bytes of code after the stock application's last row. The code ends at `0xE065`. Encoding the last row with its padding yields 798 data records across `0x1900–0xE07F`. Compared with the installed treatment-prompt build, there are 123 changed bytes in the common range and one additional 64-byte row.
+
+The verifier passed **4,352 instruction-level cases** with modeled sensors, EEPROM and audio. The stock comparisons check which clips are requested, whether a check passes, error and abort counters, and the restored gain. The new cases include a battery advisory followed by a different blocking fault in the same scan, previously issued advisories, and the player's audio-disabled return.
+
+| Checks for this build | Cases passed |
+| --- | ---: |
+| Existing startup, preference, countdown, button and ordinary speech cases | 2,096 |
+| Shared advisory and fault checks | 1,824 |
+| Stop announcement after a manual hold or a timeout | 336 |
+| Supplemental failed-check prompt | 96 |
+| **Total** | **4,352** |
+
+The checked HUG bundle preparer accepts the previously tested range through `0xE03F` and rejects this candidate's additional row. The candidate was built and exercised on the host. Its extra flash row and physical alert audibility remain unverified. [Earlier live transfer](#expanded-treatment-prompt-update) · [Bundle range check](../tools/prepare_hug_update.py)
+
+### Results for the installed treatment-prompt build
+
+Two independent builds at `35f7ac3` produced the same 112,390-byte HEX with SHA-256 `20acb2e12643db82b9bfc48df288261f0b7bfa2d5bb985470416b00c4cf9d68c`. It changes 33 bytes within the stock application. The single-clip helper occupies 22 bytes, and the 20-byte numbered-announcement wrapper fits in the remaining space through `0xE03F`. That keeps the 797 data rows and address range of the earlier installed image, with 60 changed byte values across the equal-sized images. The earlier ready-only image ended its code at `0xE02B` and carried 20 bytes of padding in the last row.
 
 The HUG bundle preparer accepted the expanded image. A separate Java 8 check verified the HEX digest through the same classpath lookup used by the HUG programming worker. Two earlier preparations of the ready-only image produced byte-identical JARs. [Bundle preparation](custom-firmware.md#prepare-hug-on-windows)
 
-The [offline verifier](../model/check_volume_settings.py) executes the assembled instructions through the startup, button, countdown and treatment-prompt hooks with modeled EEPROM and audio.
+The [offline verifier at `35f7ac3`](https://github.com/qayshp/theradome-hug-research/blob/35f7ac3f0999c10adb69a0c218f79165478e496c/model/check_volume_settings.py) executed the assembled instructions through the startup, button, countdown and treatment-prompt hooks with modeled EEPROM and audio.
 
 | Check | Cases passed |
 | --- | ---: |
@@ -72,7 +100,7 @@ The fresh revision reply confirms the application was responsive after the trans
 
 ## Live EVO LH40 test on November 26, 2026
 
-This test covered one physical EVO LH40. Its USB diagnostics identified it as LH80. The test used HUG's existing Windows update worker and the earlier volume image from commit `9945182`, with SHA-256 `5ce52a11605881b2da8c2ef1bf3a5715e2cd304eaf1b04d77c61b979a82ea1f6`. That image changed 13 stock bytes and used the same three additional HEX rows as the expanded build. The host checked the bundled image's digest before transfer. The compiled patched HEX and raw device logs were kept local. The comparison omits the unit identifier.
+This test covered one physical EVO LH40. Its USB diagnostics identified it as LH80. The test used HUG's existing Windows update worker and the earlier volume image from commit `9945182`, with SHA-256 `5ce52a11605881b2da8c2ef1bf3a5715e2cd304eaf1b04d77c61b979a82ea1f6`. That image changed 13 stock bytes and used three additional HEX rows, as did the later treatment-prompt build. The host checked the bundled image's digest before transfer. The compiled patched HEX and raw device logs were kept local. The comparison omits the unit identifier.
 
 | Check | Result |
 | --- | --- |
@@ -142,4 +170,4 @@ The speech routine passes the application revision to its general spoken-number 
 
 The archived application contains playback code and tables. Its playback routine looks up a clip in a four-byte directory entry, reads compressed bytes from a separate SPI flash address space, decodes two 4-bit ADPCM samples per byte, applies the effective attenuation, and drives PWM audio. The number routine builds spoken numbers from clips. The archived application HEX and the HUG packages examined contain no identified library of the recordings. [Playback routine](../model/rebuild.asm#L13882) · [Clip directory lookup](../model/rebuild.asm#L17818) · [SPI read](../model/rebuild.asm#L19011) · [Number routine](../model/rebuild.asm#L15674) · [Archive coverage](firmware.md)
 
-The earlier LH40 diagnostics returned 255 clip-directory slots. The first 50 entries describe a contiguous run of clip pages totaling 507,336 bytes of compressed payload. The first clip's 8,617 compressed bytes correspond to the 17,234 decoded samples seen in two matching captures. The part number, complete phrase inventory and original recording format remain unverified. [Earlier live voice readout](verification.md#live-evo-lh40-tests)
+The earlier LH40 diagnostics returned 255 clip-directory slots. The first 50 entries describe a contiguous run of clip pages totaling 507,336 bytes of compressed payload. The first clip's 8,617 compressed bytes correspond to the 17,234 decoded samples seen in two matching captures. The part number, complete phrase inventory and original recording format remain unverified. [Earlier live voice readout](verification.md#live-evo-lh40-tests) · [Clip IDs, banks and words](voice-clips.md)

@@ -273,6 +273,177 @@ def check_count_prompts(original, candidate):
     return count
 
 
+
+class StatusTrace(PromptTrace):
+    """Exercise archived status and stop dispatch with modeled device boundaries."""
+
+    def __init__(self, image, mode, index, gain, enabled, sensors=None):
+        super().__init__(image, mode, index, gain, enabled)
+        self.ram[0x2B5] = mode
+        self.sensor_results = {0x9302: 4, 0xADB6: 9, 0x7D4C: 0x0C, 0x8F06: 0x0E}
+        self.sensor_results.update(sensors or {})
+        self.device_calls = []
+        for slot in range(1, 9):
+            self.eeprom[slot * 2] = 0x34
+            self.eeprom[slot * 2 + 1] = 0x12
+
+    def peripheral(self, pc):
+        if pc in self.sensor_results:
+            self.device_calls.append((pc, self.w))
+            self.w, self.bank = self.sensor_results[pc], 2
+            self.z(self.w)
+            return True
+        if pc == 0xD358:  # timer expired while waiting
+            self.carry(True)
+            return True
+        if pc in (0x9C4C, 0x9FD2, 0xBF0E, 0xC5B8, 0xC8DE, 0xD1B0, 0xD9F8, 0xDD94):
+            self.device_calls.append((pc, self.w))
+            return True
+        if pc == 0xD3F8 and 1 <= self.pair(0x66) <= 8:
+            address = self.pair(0x66) * 2
+            self.reads.append(address)
+            low, high = self.eeprom[address], self.eeprom[address + 1]
+            self.putpair(0x66, low | high << 8)
+            self.w, self.bank = high, 2
+            return True
+        if pc == 0xD6CE and 1 <= self.pair(0xC0) <= 8:
+            self.write_word(self.pair(0xC0) * 2, self.pair(0xC2))
+            self.w, self.bank = self.ram[0xC3], 0
+            return True
+        return super().peripheral(pc)
+
+
+def check_status_outcome(stock, patched, stock_clips, patched_clips):
+    assert stock.speech == stock_clips
+    assert patched.speech == patched_clips
+    assert patched.player_registers == stock.player_registers
+    assert patched.ram == stock.ram
+    assert (patched.w, patched.bank, patched.status) == (stock.w, stock.bank, stock.status)
+    assert patched.reads == stock.reads and patched.writes == stock.writes
+    assert patched.eeprom == stock.eeprom and patched.device_calls == stock.device_calls
+
+
+def check_status_announcements(original, candidate):
+    # Explicit stock clip order at both voice layouts, including shared fragments.
+    battery_low = ((0x2C, 0x21), (0x36, 0x2C, 0x32, 0x33))
+    battery_fault = ((0x1F, 0x21), (0x1F, 0x32, 0x33))
+    battery_high = ((0x21, 0x22, 0x1F), (0x32, 0x22, 0x1F))
+    temp_low = ((0x1E, 0x2C), (0x36, 0x1E, 0x2C))
+    temp_high = ((0x2C, 0x1E, 0x22), (0x36, 0x2C, 0x1E, 0x22))
+    core_fault = (0x26, 0x1F)
+    temperature_stop = (0x1F, 0x1E, 0x22)
+    laser_fault = (0x25, 0x1F)
+    # name, sensor statuses, continuation permitted, initial warning flags,
+    # advisory clips by variant, fault clips, and fault-counter slot.
+    cases = (
+        ("nominal", {}, False, 0, ((), ()), ((), ()), None),
+        ("battery depleted", {0x9302: 1}, True, 0, ((), ()), ((0x26, 0xFF),) * 2, 2),
+        ("battery low cutoff", {0x9302: 2}, True, 0, ((), ()), battery_fault, 2),
+        ("battery low blocks readiness", {0x9302: 3}, False, 0, ((), ()), battery_fault, 3),
+        ("battery low advisory", {0x9302: 3}, True, 0, battery_low, ((), ()), None),
+        ("battery low already announced", {0x9302: 3}, True, 0x20, ((), ()), ((), ()), None),
+        ("battery high cutoff", {0x9302: 6}, True, 0, ((), ()), battery_high, 1),
+        ("core undervoltage", {0xADB6: 7}, True, 0, ((), ()), (core_fault,) * 2, 4),
+        ("core overvoltage", {0xADB6: 8}, True, 0, ((), ()), (core_fault,) * 2, 4),
+        ("temperature low advisory", {0x7D4C: 0x0D}, True, 0, temp_low, ((), ()), None),
+        ("temperature high advisory", {0x7D4C: 0x0B}, True, 0, temp_high, ((), ()), None),
+        ("temperature already announced", {0x7D4C: 0x0B}, True, 0x10, ((), ()), ((), ()), None),
+        ("temperature blocks readiness", {0x7D4C: 0x0B}, False, 0, ((), ()), (temperature_stop,) * 2, 5),
+        ("temperature stop", {0x7D4C: 0x0A}, True, 0, ((), ()), (temperature_stop,) * 2, 5),
+        ("temperature low cutoff", {0x7D4C: 0x0E}, True, 0, ((), ()), ((0x1E, 0x1F),) * 2, 5),
+        ("laser feedback", {0x8F06: 0x0F}, True, 0, ((), ()), (laser_fault,) * 2, 6),
+        ("battery advisory then core fault", {0x9302: 3, 0xADB6: 7}, True, 0, battery_low, (core_fault,) * 2, 4),
+        ("battery advisory then laser fault", {0x9302: 3, 0x8F06: 0x0F}, True, 0, battery_low, (laser_fault,) * 2, 6),
+        ("battery advisory then temperature stop", {0x9302: 3, 0x7D4C: 0x0A},
+         True, 0, battery_low, (temperature_stop,) * 2, 5),
+    )
+    count = 0
+    for case, variant, index, gain, enabled in product(cases, (0, 2), (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
+        name, sensors, allow, flags, advisory, faults, counter = case
+        advisory, faults = advisory[variant == 2], faults[variant == 2]
+        mode = 7 if allow else 4
+        stock = StatusTrace(original, mode, index, gain, enabled, sensors)
+        patched = StatusTrace(candidate, mode, index, gain, enabled, sensors)
+        for pic in (stock, patched):
+            pic.ram[0x2B8] = variant
+            pic.ram[0x27C] |= allow
+            pic.ram[0x27B] = flags
+            pic.run(0x80BA)
+        selected = GAINS[index] if index < len(GAINS) else 0
+        stock_clips = [("clip", clip, 0) for clip in advisory + faults]
+        patched_clips = (
+            [("clip", clip, selected) for clip in advisory]
+            + [("clip", clip, min(selected, GAINS[2])) for clip in faults]
+        )
+        try:
+            check_status_outcome(stock, patched, stock_clips, patched_clips)
+            assert patched.status & 1 == (counter is None)
+            assert patched.ram[0x44] == index and patched.ram[0x2B9] == gain
+            assert patched.ram[0x2B4] == (0x0B if sensors.get(0x9302) == 1 else mode)
+            assert patched.reads == ([] if counter is None else [counter * 2])
+            expected_write = [] if counter is None else [(counter * 2, 0x35), (counter * 2 + 1, 0x12)]
+            assert patched.writes == expected_write
+        except AssertionError as error:
+            raise AssertionError((name, variant, index, gain, enabled,
+                                  stock.speech, patched.speech, patched_clips)) from error
+        count += 1
+    return count
+
+
+def check_stop_prompts(original, candidate):
+    # Verify the dispatch for a real long hold and for the three stock timeout paths.
+    paths = ((4, None), (7, None), (8, None), (9, None),
+             (4, 0x5D60), (8, 0x5E6C), (9, 0x5ECC))
+    count = 0
+    for (mode, timeout), index, gain, enabled in product(paths, (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
+        stock = StatusTrace(original, mode, index, gain, enabled)
+        patched = StatusTrace(candidate, mode, index, gain, enabled)
+        for pic in (stock, patched):
+            if timeout is None:
+                pic.press(mode, 3)
+            else:
+                pic.bank = 2
+                pic.run(timeout, 0x6056)
+            assert pic.ram[0x2B4] == 0x0A
+            pic.run(0x610C, 0x6504)
+            assert pic.ram[0x2B5] == 0x0A and pic.ram[0x2B9] == 0
+            pic.run(0x5F32, 0x5550)
+        selected = GAINS[index] if index < len(GAINS) else 0
+        stock.ram[0x2A0] = 0  # candidate reused the saved-gain scratch during playback
+        check_status_outcome(
+            stock, patched,
+            [("clip", 0x27, 0), ("clip", 0x28, 0)],
+            [("clip", 0x27, selected), ("clip", 0x28, selected)],
+        )
+        address = (7 if timeout is None else 8) * 2
+        assert patched.reads == [address] and patched.writes == [(address, 0x35), (address + 1, 0x12)]
+        count += 1
+    return count
+
+
+def check_failed_state_prompt(original, candidate):
+    count = 0
+    for variant, index, gain, enabled in product((0, 2), (0, 1, 2, 3, 4, 255), GAINS, (False, True)):
+        stock = StatusTrace(original, 9, index, gain, enabled)
+        patched = StatusTrace(candidate, 9, index, gain, enabled)
+        for pic in (stock, patched):
+            pic.ram[0x2B8] = variant
+            pic.bank = 2
+            pic.run(0x62DA, 0x6504)
+        selected = GAINS[index] if index < len(GAINS) else 0
+        if variant == 2:
+            stock.ram[0x2A0] = 0  # candidate reused the saved-gain scratch during playback
+            check_status_outcome(
+                stock, patched, [("clip", 0x37, 0)],
+                [("clip", 0x37, min(selected, GAINS[2]))],
+            )
+        else:
+            check_status_outcome(stock, patched, [], [])
+        assert not patched.reads and not patched.writes
+        count += 1
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", type=Path)
@@ -293,6 +464,9 @@ def main():
         ("ready prompt", check_ready_prompts(before, after)),
         ("pause reminder and resume prompts", check_pause_prompts(before, after)),
         ("numbered treatment start and completion prompts", check_count_prompts(before, after)),
+        ("advisory and blocking status announcements", check_status_announcements(before, after)),
+        ("manual and timeout stop prompts", check_stop_prompts(before, after)),
+        ("supplemental failed-check prompt", check_failed_state_prompt(before, after)),
     ]
     for name, count in checks:
         print(f"{name}: {count} passed")
