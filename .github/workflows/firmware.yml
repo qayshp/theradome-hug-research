@@ -1,0 +1,108 @@
+name: Firmware build and checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      verify_hug_bundle:
+        description: Download the archived Windows installer from Theradome and verify bundle preparation
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gputils
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gputils
+          gpasm --version
+
+      - name: Verify the stock rebuild
+        run: sh model/rebuild.sh
+
+      - name: Check states, inputs, and voice
+        run: |
+          python3 -B model/check_states.py
+          cc -shared -fPIC -o "$RUNNER_TEMP/inputs.so" model/inputs.c
+          python3 -B model/check_inputs.py "$RUNNER_TEMP/inputs.so"
+          cc -shared -fPIC -o "$RUNNER_TEMP/voice.so" model/voice.c
+          python3 -B model/voice_check.py "$RUNNER_TEMP/voice.so"
+          python3 -B model/check_voice_numbers.py
+
+      - name: Build the volume HEX and verify against the archived warning build
+        run: |
+          artifact_dir="$RUNNER_TEMP/theradome-firmware"
+          baseline_dir="$RUNNER_TEMP/theradome-volume-baseline"
+          mkdir -p "$artifact_dir"
+          python3 -B -m model.tools.build_volume_settings "$artifact_dir/volume-settings.hex"
+          git worktree add --detach "$baseline_dir" a99c9692e2d5de9cc328974091f2274d9d3085fb
+          (
+            cd "$baseline_dir"
+            python3 -B -m model.tools.build_volume_settings "$RUNNER_TEMP/a99c969.hex"
+          )
+          python3 -B model/check_volume_settings.py "$artifact_dir/volume-settings.hex" \
+            --compare-to "$RUNNER_TEMP/a99c969.hex"
+          PYTHONPATH=tools python3 -B - "$artifact_dir/volume-settings.hex" <<'PY'
+          from pathlib import Path
+          import sys
+
+          from prepare_hug_update import validate_image
+
+          end = validate_image(Path(sys.argv[1]).read_bytes())
+          print(f"HUG record layout verified through 0x{end - 1:04X}")
+          PY
+          cd "$artifact_dir"
+          sha256sum volume-settings.hex > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Check documentation links
+        run: python3 -B tools/check_doc_links.py
+
+      - name: Verify Windows HUG bundle preparation
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_hug_bundle }}
+        run: |
+          sudo apt-get install -y --no-install-recommends innoextract
+          hug_dir="$RUNNER_TEMP/theradome-hug"
+          mkdir -p "$hug_dir"
+          installer="$hug_dir/HugApplication.exe"
+          curl --fail --silent --show-error --location --retry 2 --max-time 90 \
+            --output "$installer" https://apps.theradome.com/downloads/HugApplication.exe
+          PYTHONPATH=tools python3 -B - "$installer" <<'PY'
+          from pathlib import Path
+          import sys
+
+          from verify_packages import WINDOWS_INSTALLER, verify_digest
+
+          verify_digest("Windows installer", Path(sys.argv[1]).read_bytes(), WINDOWS_INSTALLER)
+          PY
+          innoextract --include HugUpgrade.exe --output-dir "$hug_dir" "$installer"
+          python3 -B tools/prepare_hug_update.py "$hug_dir/app/HugUpgrade.exe" \
+            "$RUNNER_TEMP/theradome-firmware/volume-settings.hex" "$hug_dir/HugLocal.jar"
+
+      - name: Upload the verified HEX and checksum
+        if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: theradome-volume-settings-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/theradome-firmware/volume-settings.hex
+            ${{ runner.temp }}/theradome-firmware/SHA256SUMS
+          if-no-files-found: error

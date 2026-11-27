@@ -8,6 +8,12 @@ This is an independent investigation of HUG, Theradome’s desktop helmet update
 
 Rebuild and check an image, verify the device, and prepare a local HUG bundle. After the transfer, check whether the firmware is still in diagnostics, then confirm calibration and normal operation. [Custom firmware guide](docs/custom-firmware.md) · [Board Test and post-flash recovery](docs/board-test-recovery.md)
 
+### GitHub Actions builds
+
+The [firmware workflow](.github/workflows/firmware.yml) runs on pushes to `main`, pull requests targeting `main`, and manual runs. It checks the stock rebuild, firmware models, HUG HEX layout, and documentation links. Successful runs on `main` attach **`volume-settings.hex`** and **`SHA256SUMS`** to an artifact named for the commit. Sign in to GitHub, open the completed run, and download it from **Artifacts**. The download is available for the repository's artifact retention period. [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml) · [GitHub artifact downloads](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+
+Before using a downloaded HEX, compare its SHA-256 with `SHA256SUMS` and check the device and loader against the [build and flash guide](docs/custom-firmware.md). A manual run can also verify Windows HUG bundle preparation against the fingerprinted installer downloaded from Theradome. That check uses runner scratch space for the installer and prepared JAR. The artifact contains the generated HEX and its checksum.
+
 ## Follow the investigation
 
 | Question | Evidence |
