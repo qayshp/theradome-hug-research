@@ -75,6 +75,10 @@ eeadrh_access           equ     0x63
         org     0x7330
         nop
 
+; The default short press reads the completed count, including on the charger.
+        org     0x7428
+        call    volume_count_prompt, 0
+
 ; Share the gain conversion in the original button-volume code region.
         org     0x74E8
         bnz     volume_feedback

@@ -17,6 +17,7 @@ REPORT_TICKS = (0, 1, 29, 30, 148, 149, 150, 298, 299, 300, 448, 449, 450, 599, 
 STOCK_AUTOMATIC_TICKS = {149, 299, 449}
 WARNING_BUILD_SHA256 = "aef971a11b97101bdeee421517cab60e516df8bf0b1ff65c81ff054c8e2f2cfd"
 CYCLE_MODES = (0, 4, 5, 7, 8, 9, 0x12, 0x19)
+COUNT_READOUT_MODES = (0, 1, 2, 3, 6, 0x0A, 0x0B, 0x0C, 0x0D, 0x0F, 0x10, 0x14, 0x15, 0x1A)
 
 
 class Trace(Runner):
@@ -473,6 +474,29 @@ def check_failed_state_prompt(original, candidate, baseline=None):
     return count
 
 
+def check_count_readout(original, candidate):
+    # The default short-press route includes charged and charging states 1 and 2.
+    count = 0
+    for mode, variant, index, gain, enabled, completed in product(
+            COUNT_READOUT_MODES, (0, 2), (0, 1, 2, 3, 4, 255), GAINS, (False, True), (0, 12, 255, 65535)):
+        stock = PromptTrace(original, mode, index, gain, enabled, completed)
+        patched = PromptTrace(candidate, mode, index, gain, enabled, completed)
+        for pic in (stock, patched):
+            pic.ram[0x2B8] = variant
+            pic.press(mode, 2)
+        number = 0 if completed == 65535 else completed
+        selected = GAINS[index] if index < len(GAINS) else 0
+        sequence = [("clip", 0x27), ("number", number), ("clip", 0x23)]
+        # The overlay reuses this scratch byte while the button override is active.
+        stock.ram[0x2A0] = 0
+        check_prompt_result(stock, patched, sequence, 0, selected)
+        assert (patched.ram[0x44], patched.ram[0x2B9]) == (index, gain)
+        assert patched.reads == [0]
+        assert patched.writes == ([(0, 0), (1, 0)] if completed == 65535 else [])
+        count += 1
+    return count
+
+
 def check_feedback_gate(candidate, baseline):
     count = 0
     for mode, index, gain, enabled in product(CYCLE_MODES, range(4), GAINS, (False, True)):
@@ -519,12 +543,14 @@ def main():
     ]
     if baseline is not None:
         checks.append(("double press with audio enabled and disabled", check_feedback_gate(after, baseline)))
+    prior_checks = sum(count for _, count in checks)
+    checks.append(("short-press completed-count readout", check_count_readout(before, after)))
     for name, count in checks:
         print(f"{name}: {count} passed")
     total = sum(count for _, count in checks)
     print(f"{total} instruction-level cases passed")
     if baseline is not None:
-        print(f"{total} cases matched a99c969 at the modeled boundaries")
+        print(f"{prior_checks} cases matched a99c969 at the modeled boundaries")
     print(f"{len(changed)} changed stock bytes across {len(HOOKS)} hooks")
 
 

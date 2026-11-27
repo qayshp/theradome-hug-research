@@ -12,6 +12,10 @@ The follow-up uses the selected level for a low-battery warning that lets treatm
 
 The battery status check can warn once and allow treatment to continue, or reject the current operation. The same low-voltage band can select either path. The controller also checks a separate internal supply, temperature and laser-current feedback. Applying volume by branch allows the nonblocking warning to use Silent and the blocking alert to use a nonzero gain. The same ordinary abort notice follows a manual stop and other exits through the stop state, such as a paused-treatment timeout. The notice uses the selection on each of those paths. If a check fails, its preceding fault alert still uses the Soft minimum. Nonblocking temperature advisories in the shared check use the selection as well. [Battery warning branches](../model/rebuild.asm#L11615-L11668) · [Controller and sensor checks](../model/firmware-io-map.md#analog-acquisition-and-charger-feedback) · [Stock stop state](../model/rebuild.asm#L7705-L7720)
 
+## Button-requested treatment count
+
+With the refactored 797-row image installed, a short press while the helmet was connected to a charger still played “Treatment [number] complete” at full volume. This is the stored completion-count readout. The button dispatcher temporarily sets full gain before calling the count routine at `0x7428`. Automatic treatment completion has its own call at `0x5F2A`. The follow-up uses the existing counted-speech wrapper at `0x7428` so the report uses the selected level for the prefix, number and suffix. The wrapper restores the incoming gain on return, and the button dispatcher then restores the gain that preceded the press. [Button gain override](../model/rebuild.asm#L9725-L9737) · [Count readout call](../model/rebuild.asm#L10172-L10175) · [Counted speech](../model/rebuild.asm#L20310-L20360)
+
 ## Assembly and storage
 
 [The PIC18 assembly overlay](../model/volume-settings.asm) uses the same `18f66k22` assembler profile as the stock reconstruction. It assembles short hooks, a shared volume conversion in the stock button-volume area, and a separate block of routines. The original source and its address map remain available for comparison.
@@ -30,6 +34,7 @@ The overlay, build script and verifier used for the earlier live test are in com
 | `0x6306` | Apply the Soft floor to the optional clip in the failed-check waiting state. |
 | `0x72AC` | Advance the selected level, persist it, then run the original feedback handler. |
 | `0x7330` | Preserve the selected index on the idle hold. |
+| `0x7428` | Apply selected gain to the button-requested completed-treatment count. |
 | `0x74E8`, `0x74EC–0x750D` | Route the button confirmation through the same volume conversion as the speech paths. Resume the stock clip setup at `0x7512`. |
 | `0x80C4` | Use selected gain after the shared check has saved the incoming gain. |
 | `0x80CE`, `0x8122`, `0x81C4`, `0x81DE`, `0x8240`, `0x8274`, `0x8316`, `0x838C` | Apply the Soft floor before the first clip of each blocking battery, controller-supply, temperature or laser-current sequence. The shared check restores the incoming gain at its original exit. |
@@ -49,17 +54,23 @@ python3 -B model/check_volume_settings.py "$build_dir/volume-settings.hex"
 
 The [build script](../model/tools/build_volume_settings.py) invokes gpasm for the sparse overlay, checks the stock HEX digest and address range, and restricts changes to declared hooks and a contiguous extension. The script re-encodes the merged image using the vendor's 64-byte Intel HEX rows, per-record checksums and CRLF line endings. The stock image also round-trips through the encoder byte for byte. [Intel HEX format](https://onlinedocs.microchip.com/oxy/GUID-C3F66E96-7CDD-47A0-9AB7-9068BADB46C0-en-US-4/GUID-DF9E479D-6BA8-49E3-A2A5-997BBA49D34D.html)
 
+### Button-requested count follow-up
+
+Two independent builds of the count-readout follow-up produced the same 112,390-byte HEX with SHA-256 `f8b3a0e4828560ea2ca38e48c1a8ebf2de6105dc551f8d9a9d3378a58bf03396`. It adds one hook using existing routines and keeps the 797 data records across `0x1900–0xE03F`. A binary comparison with the installed `50b1474` image found differences at `0x7428` and `0x742A`, the two modified bytes of the call target. [Count readout](#button-requested-treatment-count) · [Assembly overlay](../model/volume-settings.asm)
+
+The verifier passed 5,376 new short-press cases across 14 dispatch states, including 768 cases for ordinary charging and charged states. The checks compare the speech sequence, selected and restored gain, caller and playback registers, and treatment-counter EEPROM operations. The 4,608 existing comparisons against `a99c969` also passed, for 9,984 cases across the full run. The follow-up is an offline candidate. [Volume verifier](../model/check_volume_settings.py)
+
 ### 797-row volume refactor
 
 The refactor brings the warning and fault policy from `a99c969` into the 797-row layout used in the physical treatment-prompt update. The shared volume conversion takes 30 bytes at `0x74EC–0x7509`. The four-byte adapter at `0x750A` calls the conversion and branches to the original confirmation clip setup at `0x7512`. Announcements use the same conversion through a jump from the overlay. Reusing a clip-call adapter, returning directly from the startup conversion, and shortening the Soft floor check reduce the space needed after the stock image. [798-row baseline commit](https://github.com/qayshp/theradome-hug-research/commit/a99c9692e2d5de9cc328974091f2274d9d3085fb) · [Assembly overlay](../model/volume-settings.asm) · [Archived button feedback](../model/rebuild.asm#L10277-L10317)
 
 The 112,390-byte refactored HEX has SHA-256 `d006463504583b23788555442f06b24cd940467e496b07ccbd4ff62d41c6ac98`. It carries 51,008 bytes in 797 data records over `0x1900–0xE03F`. Its extension after the stock image is 192 bytes, down from 230 bytes in `a99c969`. The refactor changes 94 stock bytes across 29 hooks. Compared directly with `a99c969`, the refactor changes 224 bytes in the common range and drops the final 64-byte record. [Earlier warning and fault build](#results-for-the-offline-warning-and-fault-build)
 
-The direct verifier matched the two builds in **4,608 cases**. It reran all 4,352 existing scenarios and added 256 double presses with audio enabled and disabled. Both images made the same ordered clip and number requests at the same gain, with matching playback-entry registers and enable flag, final modeled RAM and registers, EEPROM reads and writes, and peripheral calls. These checks model the sensors and audio player at their call boundaries. The checked Windows bundle preparer accepted the refactored HEX and the vendor's Java 8 runtime found the embedded resource at the expected SHA-256. The prior transfer showed the loader accepts records through `0xE03F` on the tested LH40. The refactored code requires its own transfer and playback checks. [Comparison verifier](../model/check_volume_settings.py) · [Earlier live transfer](#expanded-treatment-prompt-update)
+The direct verifier matched the two builds in **4,608 cases**. It reran all 4,352 existing scenarios and added 256 double presses with audio enabled and disabled. Both images made the same ordered clip and number requests at the same gain, with matching playback-entry registers and enable flag, final modeled RAM and registers, EEPROM reads and writes, and peripheral calls. These checks model the sensors and audio player at their call boundaries. The checked Windows bundle preparer accepted the refactored HEX and the vendor's Java 8 runtime found the embedded resource at the expected SHA-256. The loader accepted the refactored image through `0xE03F` on the tested LH40. [Comparison verifier](../model/check_volume_settings.py) · [Refactored image live transfer](#live-797-row-refactor)
 
 #### Reproduce the direct comparison
 
-After building the refactored image above, build the baseline in a separate working tree and pass both HEX files to the verifier.
+After building the image above, build the baseline in a separate working tree and pass both HEX files to the verifier. The current checkout also runs the new count-readout checks against the stock button handler.
 
 ```sh
 baseline_dir=$(mktemp -d)
@@ -111,6 +122,14 @@ The [offline verifier at `35f7ac3`](https://github.com/qayshp/theradome-hug-rese
 | **Total** | **2,096** |
 
 The countdown tests check both parts of the announcement, automatic timing, and gain after the report. The treatment-prompt tests compare the speech requests, player inputs, RAM, registers and EEPROM operations. The start and completion calls reuse the stock numbered-announcement helper with its original distinct arguments, `0x24` and `0x23`. The tests confirm its treatment-count read and its stock behavior when the count is uninitialized, including a write of zero. The volume wrapper applies the selected gain for playback and restores the incoming setting afterward.
+
+## Live 797-row refactor
+
+The checked Windows runner installed the image built from commit `50b1474` on the same EVO LH40 on November 26, 2026. The transfer log recorded 797 row acknowledgments and zero NAKs. The loader returned `Success`, and HUG's worker reported status `3`. A fresh read-only COM7 session returned application and loader revision `126.6`. [Refactored image and digest](#797-row-volume-refactor)
+
+After unplugging and reconnecting the helmet, the owner saw the switch blinking red. The helmet remained connected to laptop USB for roughly 24 minutes. On returning, one brief press appeared to elicit “Ready for calibration.” Calibration started while the helmet was connected. The owner reported seeing brief laser emission before calibration finished. In the archived ready state, the switch handler can repeat the announcement, and an existing charger connection can allow the next phase to begin immediately. The exact trigger and individual emitter output remain unverified. [Calibration-ready and charger checks](../model/rebuild.asm#L6791-L6822) · [Ready-state switch handler](../model/rebuild.asm#L10005-L10015) · [Calibration-start path](../model/rebuild.asm#L6989-L7026)
+
+The owner reported that ordinary use away from the charger followed the selected volume. The remaining louder prompt they noticed was “Treatment [number] complete” after a short press while connected to a charger. [Button-requested count readout](#button-requested-treatment-count)
 
 ## Expanded treatment-prompt update
 
@@ -167,7 +186,7 @@ The other displayed counters matched. Manufacturing flags 25–31 were `A5A5`, `
 
 The archived calibration path waits for the same charger-input pattern that ordinary diagnostics report as **Charged**. It compares the sampled battery reading with a fixed reference equivalent to about **4.20 V** and saves a signed correction. The change in field 20 makes the normal reported battery voltage about **10 mV lower** for the same raw input. Field 21 changed by 17 ADC counts, equivalent to about 15 mV at a 3.7 V battery estimate with the other inputs held fixed. The field 21 calculation depends on both the battery estimate and the internal ADC measurement. A physical change in the supply rail remains unverified. [Charger inputs](../model/inputs.md#what-the-charging-diagnostic-prints) · [Calibration gate](../model/rebuild.asm#L7023) · [Battery correction](../model/rebuild.asm#L13645) · [Internal-voltage correction](../model/rebuild.asm#L16789)
 
-The calibration routine can store `0xA5A5` in word 29 to mark calibration complete. That word had the same value in both snapshots. The traced routine saves the voltage correction and completion flag. It has no separate save of a learned full-charge percentage or capacity. Completing calibration on laptop USB shows that the firmware saw the expected charger signal. The later fade-to-green transition on the same laptop is further evidence that the helmet saw charging and then charge complete. No inline measurement of USB current or independent measurement of cell voltage was made. No second calibration was run. [Completion flag](../model/rebuild.asm#L7407) · [Startup flag check](../model/rebuild.asm#L6791)
+The calibration routine can store `0xA5A5` in word 29 to mark calibration complete. That word had the same value in both snapshots. The traced routine saves the voltage correction and completion flag. It has no separate save of a learned full-charge percentage or capacity. Completing calibration on laptop USB shows that the firmware saw the expected charger signal. The later fade-to-green transition on the same laptop is further evidence that the helmet saw charging and then charge complete. No inline measurement of USB current or independent measurement of cell voltage was made. The test covered one calibration cycle. [Completion flag](../model/rebuild.asm#L7407) · [Startup flag check](../model/rebuild.asm#L6791)
 
 ### What the switch light indicated
 
