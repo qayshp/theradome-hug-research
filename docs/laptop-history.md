@@ -80,6 +80,17 @@ On a desktop with Tk and Matplotlib, `python -B tests/desktop_smoke.py` exercise
 
 The Windows Start menu launch was verified with the existing archive. A Linux ARM64 test used a simulated serial port with the original HUG JAR and Java 8. It verified import through capture, CSV and chart generation, plus a separate clock sync through two advancing readbacks.
 
-On the physical LH40, the tool read the clock and treatment log over USB, added one new treatment to the existing CSV, and regenerated the chart. The simulated cases cover the terminal-clear sequences that preceded the live clock report.
+In a command-line test on the physical LH40, the tool read the clock and treatment log over USB, added one new treatment to the existing CSV, and regenerated the chart. The simulated cases cover the terminal-clear sequences that preceded the live clock report.
 
-A separate live run verified `sync-clock`. The helmet was about 11 seconds ahead, acknowledged the write with `Date Set`, and then returned two readings that advanced by two seconds and matched the laptop’s displayed second. [Clock protocol and earlier hardware check](verification.md#live-evo-lh40-tests)
+A separate command-line run verified `sync-clock`. The helmet was about 11 seconds ahead, acknowledged the write with `Date Set`, and then returned two readings that advanced by two seconds and matched the laptop’s displayed second. [Clock protocol and earlier hardware check](verification.md#live-evo-lh40-tests)
+
+### Live Windows app tests
+
+On November 28, 2026, both tests ran from the LH40 History Start menu shortcut on Windows ARM64 with an EVO LH40 at application revision 126 and bootloader revision 6 on COM7.
+
+| App action | Observed result |
+| --- | --- |
+| **Import treatments** and **Open chart** | The app reused the existing diagnostics session and read all 50 retained treatments. The helmet’s completed-treatment count matched the newest archived record, and the CSV still contained 53 unique treatments after import. The app saved the raw replies locally, regenerated `treatment-history.png`, and displayed it in Windows Photos when **Open chart** was selected. The USB import was read-only on the helmet. |
+| **Sync clock…** | The app showed the laptop’s local time, asked for confirmation, and then prompted for a master-switch hold. The helmet acknowledged the write with `Date Set`. Two separate USB readbacks advanced by two seconds and each matched the laptop’s displayed second. The app displayed “Clock synced and verified against the laptop.” |
+
+The raw replies and personal treatment timestamps are stored in the local archive.
