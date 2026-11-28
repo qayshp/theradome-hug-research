@@ -3,7 +3,7 @@
 import csv
 import io
 import re
-from dataclasses import astuple, dataclass, fields
+from dataclasses import dataclass, fields
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -11,7 +11,8 @@ from typing import Iterable
 
 
 LOG_WINDOW = 50
-MAX_SESSION = 0xFFFE  # The EEPROM viewer treats 0xFFFF as zero.
+EMPTY_COUNTER = 0xFFFF
+MAX_SESSION = EMPTY_COUNTER - 1
 WEEKDAYS = frozenset(("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"))
 CONSOLE_ESCAPES = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|H)")
 TITLE = re.compile(r"\*+ TREATMENTS COMPLETED LOG \*+")
@@ -92,6 +93,8 @@ def parse_treatments(text: str, *, expected_count: int | None = None) -> list[Tr
         if len(rows) != LOG_WINDOW:
             raise ArchiveError(f"Expected a full {LOG_WINDOW}-row capture without a separate treatment count.")
         expected_count = rows[-1].session_number
+    if expected_count == EMPTY_COUNTER:
+        expected_count = 0  # D prints the raw word. V maps it to an empty ring.
     if not 0 <= expected_count <= MAX_SESSION:
         raise ArchiveError("The reported treatment count is outside the supported range.")
     first = max(1, expected_count - LOG_WINDOW + 1)
@@ -163,7 +166,10 @@ def serialize_history(rows: Iterable[Treatment]) -> str:
     writer = csv.writer(output)
     writer.writerow(CSV_COLUMNS)
     for row in _by_number(rows).values():
-        number, stamp, weekday, *measurements = astuple(row)
-        writer.writerow((number, stamp.isoformat(sep=" ", timespec="seconds"), weekday,
-                         *(format(value, ".2f") for value in measurements)))
+        writer.writerow((row.session_number,
+                         row.finished_at_helmet_local.isoformat(sep=" ", timespec="seconds"),
+                         row.helmet_weekday,
+                         format(row.battery_voltage_v, ".2f"),
+                         format(row.temperature_c, ".2f"),
+                         format(row.laser_current_ma, ".2f")))
     return output.getvalue()

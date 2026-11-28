@@ -83,6 +83,11 @@ jobs:
       - name: Check documentation links
         run: python3 -B tools/check_doc_links.py
 
+      - name: Check laptop treatment archive and USB protocol
+        run: |
+          python3 -B -m unittest discover -s tests -p 'test_lh40_*.py'
+          node tests/test_lh40_usb.js
+
       - name: Verify Windows HUG bundle preparation
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_hug_bundle }}
         run: |

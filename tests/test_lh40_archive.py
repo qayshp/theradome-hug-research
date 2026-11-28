@@ -41,6 +41,7 @@ class TreatmentDisplayTests(unittest.TestCase):
 
     def test_small_or_empty_ring_requires_counter(self):
         self.assertEqual(parse_treatments(HEADER, expected_count=0), [])
+        self.assertEqual(parse_treatments(HEADER, expected_count=65535), [])
         self.assertEqual(parse_treatments(HEADER + display_row(1), expected_count=1), [treatment(1)])
         with self.assertRaises(ArchiveError):
             parse_treatments(HEADER + display_row(1))
