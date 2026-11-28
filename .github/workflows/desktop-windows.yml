@@ -11,6 +11,15 @@ on:
       - 'tools/verify_packages.py'
       - 'tests/test_lh40_*'
       - 'tests/desktop_smoke.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/desktop-windows.yml'
+      - 'packaging/windows/**'
+      - 'tools/lh40_*'
+      - 'tools/verify_packages.py'
+      - 'tests/test_lh40_*'
+      - 'tests/desktop_smoke.py'
 
 permissions:
   contents: read
@@ -93,6 +102,7 @@ jobs:
           }
 
       - name: Upload the tested ZIP and checksum
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: lh40-history-windows-${{ matrix.arch }}

@@ -6,7 +6,7 @@ LH40 History reads the helmet’s treatment log into a local CSV and redraws the
 
 ### Windows download
 
-1. Download the LH40 History Windows ZIP from GitHub Releases. Choose **x64** for a 64-bit Intel or AMD PC or **ARM64** for Windows 11 on Arm. **Settings > System > About** shows your system type. [GitHub Releases](https://github.com/qayshp/theradome-hug-research/releases)
+1. Download the LH40 History Windows ZIP. Choose **x64** for a 64-bit Intel or AMD PC or **ARM64** for Windows 11 on Arm. **Settings > System > About** shows your system type. [LH40 History for Windows release](https://github.com/qayshp/theradome-hug-research/releases/tag/lh40-history-v1.0.0)
 2. In File Explorer, use **Extract All** and open `LH40 History.exe` inside the extracted folder. Keep the whole folder together. The ZIP includes Python, the charting library and a `START HERE.txt` guide.
 3. For USB, install Theradome’s original Windows HUG package if needed. Its Java runtime is included with HUG. LH40 History checks its standard install locations, including `C:\Program Files (x86)\HugApplication`. For a custom installation, use **Settings > Original HUG folder > Browse** and select the folder containing `HugUpgrade.exe` and `jre\bin\jjs.exe`. Close HUG before importing. [Windows HUG download](https://apps.theradome.com/downloads/HugApplication.exe) · [Installer fingerprint](discovery.md)
 4. Connect the helmet with a USB data cable and choose its COM number. If it does not appear as a USB Serial Port in Device Manager, check the FTDI driver for your Windows architecture. [USB driver setup](usb-clock-details.md#windows-arm64-driver-setup) · [FTDI drivers](https://ftdichip.com/drivers/vcp-drivers/)

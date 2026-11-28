@@ -90,3 +90,14 @@ python3 -B model/tools/rebuild.py diff "$build_dir/custom.hex"
 ```
 
 The expected difference in this example is a single byte at `0xDED8`. The packer requires the original populated address map. Review the instruction and address differences for your edit and test the changed behavior separately. The hardware results above cover the specified volume image. [Example packer](../model/experiments/requested-volume/README.md) · [Annotated formatter](../model/rebuild.asm#L22490)
+
+## Prepare a tagged release
+
+From a checkout at the commit you intend to release, push one new `lh40-volume-v*` tag. Use a commit that includes the tag workflow. For example, for version `1.0.1` run the following commands.
+
+```sh
+git tag lh40-volume-v1.0.1
+git push origin refs/tags/lh40-volume-v1.0.1
+```
+
+The tag run builds the HEX and runs the offline checks. Once those pass, a second job downloads that exact build artifact, checks its SHA-256, and attaches `volume-settings.hex` and `SHA256SUMS` to a release draft. Review the notes and hardware coverage before publishing the draft. A rerun can finish a partial draft and will stop on a conflicting existing asset. [Firmware workflow](../.github/workflows/firmware.yml) · [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml)

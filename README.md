@@ -1,34 +1,33 @@
-# Theradome HUG and helmet firmware
+# Theradome LH40 tools and firmware research
 
-This repository documents Theradome’s HUG updater and a firmware change that saves the chosen volume and uses it for ordinary announcements, including the treatment count. Alerts that block or stop treatment still play at least at Soft. [Volume behavior and test results](docs/volume-settings.md)
+This repository contains the LH40 History app, a firmware volume fix, and research on Theradome’s HUG updater and helmet firmware.
 
-## Build, flash and return to normal use
+<a name="save-treatment-history-and-check-the-clock"></a>
+
+## LH40 History app
+
+Import completed treatments over USB, save the raw replies locally, and update a CSV and chart. **Sync clock** asks for separate confirmation. LH40 History works with the helmet’s existing firmware. The Windows download includes Python.
+
+- [Download LH40 History for Windows](https://github.com/qayshp/theradome-hug-research/releases/tag/lh40-history-v1.0.0) for x64 or ARM64.
+- [Set up HUG and use the app](docs/laptop-history.md#windows-download) with the Windows download, or use the source and command-line instructions in the same guide.
+
+<a name="build-flash-and-return-to-normal-use"></a>
+
+## Firmware volume fix
+
+The fix saves the chosen volume and uses it for ordinary announcements, including the treatment count. Alerts that block or stop treatment still play at least at Soft. [Volume behavior and test results](docs/volume-settings.md)
 
 One **EVO LH40** reporting application revision **126** and bootloader revision **6** completed calibration and a full treatment with the tested volume image. Compatibility with other helmets remains unverified. [Live results](docs/volume-settings.md#live-count-readout-update) · [How to identify the device](docs/device.md)
 
-- [Install the tested volume fix on Windows](docs/custom-firmware.md) starts with checking the model and downloading the verified firmware file. It walks through preparing HUG, updating, and checking the result.
-- [Download the tested HEX and checksum](https://github.com/qayshp/theradome-hug-research/releases/tag/lh40-volume-v1.0.0) from the public release.
+- [Download the tested volume fix](https://github.com/qayshp/theradome-hug-research/releases/tag/lh40-volume-v1.0.0) with its HEX and checksum.
+- [Install the volume fix on Windows](docs/custom-firmware.md) covers the model check, HUG preparation, and verification after updating.
 - [Recover after a successful transfer](docs/board-test-recovery.md#recover-after-a-successful-transfer) covers calibration prompts and what to do if the helmet stays in Board Test.
 - [Build or edit the firmware from source](docs/custom-firmware.md#rebuild-a-reference-image) covers the stock rebuild, volume checks, and a small assembly example.
 
-### GitHub Actions builds
+## GitHub Actions builds
 
-Successful runs on `main` attach `volume-settings.hex` and `SHA256SUMS` for each build. A manual run can also verify bundle preparation against Theradome's fingerprinted Windows installer. The public release provides the exact tested HEX independently of Actions artifact retention. [Workflow](.github/workflows/firmware.yml) · [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml)
-
-#### Prepare a tagged release
-
-From a checkout at the commit you intend to release, push one new `lh40-volume-v*` tag. Use a commit that includes the tag workflow. For example, for version `1.0.1` run the following commands.
-
-```sh
-git tag lh40-volume-v1.0.1
-git push origin refs/tags/lh40-volume-v1.0.1
-```
-
-The tag run builds the HEX and runs the offline checks. Once those pass, a second job downloads that exact build artifact, checks its SHA-256, and attaches `volume-settings.hex` and `SHA256SUMS` to a release draft. Review the notes and hardware coverage before publishing the draft. A rerun can finish a partial draft and will stop on a conflicting existing asset. [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml) · [Release drafts](https://github.com/qayshp/theradome-hug-research/releases)
-
-## Save treatment history and check the clock
-
-The LH40 History desktop app and command-line tool read completed treatments over USB, save the raw replies locally, and update a CSV and chart. **Sync clock** is a separate action with its own confirmation in the app. The Windows download includes Python. [Windows download and HUG setup](docs/laptop-history.md#windows-download) · [GitHub Releases](https://github.com/qayshp/theradome-hug-research/releases)
+- **LH40 History.** Pull requests that affect the app or its packaging build and test the x64 and ARM64 Windows packages before merge. [Windows workflow](.github/workflows/desktop-windows.yml) · [Build instructions](docs/laptop-history.md#build-the-windows-download)
+- **Firmware.** Successful builds on `main` attach `volume-settings.hex` and `SHA256SUMS`. A manual run can also verify bundle preparation using Theradome’s installer. [Firmware workflow](.github/workflows/firmware.yml) · [Tagged firmware release instructions](docs/custom-firmware.md#prepare-a-tagged-release)
 
 ## Follow the investigation
 
@@ -67,4 +66,4 @@ If you have the original Mac ZIP, run `python tools/verify_packages.py HugApplic
 
 ## Attribution
 
-The desktop software and the firmware originate from the HUG distribution. The Java text was recovered with a decompiler. The assembly, behavioral models, tests and research notes were prepared for this investigation. The upstream firmware repository lists no license for the image. No reuse license is asserted here on behalf of the original authors. [Upstream firmware repository](https://github.com/renuraja03/fwupdate)
+Theradome’s HUG updater and the archived firmware originate from the HUG distribution. The Java text was recovered with a decompiler. The LH40 History app, assembly, behavioral models, tests, and research notes were prepared for this project. The upstream firmware repository lists no license for the image. No reuse license is asserted here on behalf of the original authors. [Upstream firmware repository](https://github.com/renuraja03/fwupdate)
