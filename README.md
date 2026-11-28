@@ -28,7 +28,7 @@ The tag run builds the HEX and runs the offline checks. Once those pass, a secon
 
 ## Save treatment history and check the clock
 
-The Windows laptop tool reads completed treatments over USB, saves the raw replies locally, and updates a CSV and chart. It sets the helmet clock only when you run a separate sync command. [Laptop history and clock guide](docs/laptop-history.md)
+The LH40 History desktop app and command-line tool read completed treatments over USB, save the raw replies locally, and update a CSV and chart. **Sync clock** is a separate action with its own confirmation in the app. [Laptop history and clock guide](docs/laptop-history.md)
 
 ## Follow the investigation
 

@@ -1,12 +1,23 @@
 # Save LH40 treatment history and check the clock
 
-The Windows tool reads the helmet’s treatment log into a local CSV and redraws the battery, temperature and recorded laser-current chart. When you explicitly run **`sync-clock`**, it sets the helmet to the laptop’s local date and time and reads the result back.
+LH40 History reads the helmet’s treatment log into a local CSV and redraws the battery, temperature and recorded laser-current chart. It has a desktop window and a command-line interface. The USB path targets the **EVO LH40** with application revision **126** and bootloader revision **6**.
 
-## Set up once
+## Desktop app
 
-1. Use Python 3.10 or newer and install the chart library with `python -m pip install "matplotlib>=3.6"`. [Python for Windows](https://www.python.org/downloads/windows/)
-2. Use the original [Theradome Windows HUG package](https://apps.theradome.com/downloads/HugApplication.exe). Locate the folder containing `HugUpgrade.exe` and `jre\bin\jjs.exe`. The tool checks that the launcher matches the [archived HUG build](discovery.md).
-3. In PowerShell, open this repository folder. Set these paths for your computer. Use the folder that already contains `treatments.csv` if you have an existing archive. Close HUG and any other program using the helmet’s port.
+Use Python 3.10 or newer with Tk and install Matplotlib once with `python -m pip install "matplotlib>=3.6"`. Open the complete repository folder so the launcher can find its supporting files. [Python for Windows](https://www.python.org/downloads/windows/) · [Tk setup](https://docs.python.org/3/library/tkinter.html)
+
+- **Windows.** Open `Open LH40 History.pyw` from File Explorer using the `pythonw.exe` from your Python installation or environment. A shortcut to that executable with the launcher’s full path as its argument opens the same window from the Start menu or desktop. In **Settings**, select the original HUG folder containing `HugUpgrade.exe` and `jre\bin\jjs.exe`. Use the helmet’s COM number in the port list. [Windows HUG download](https://apps.theradome.com/downloads/HugApplication.exe) · [USB driver setup](usb-clock-details.md#windows-arm64-driver-setup)
+- **macOS and Linux.** Run `python3 tools/lh40_desktop.py`. In **Settings**, choose `Resources/myapp.jar` from the original Mac HUG archive and choose `bin/jjs` from a Java 8 JDK if it is outside your PATH. On macOS, select the helmet’s `/dev/cu.usbserial…` port. On Linux, select its `/dev/ttyUSB…` or `/dev/serial/by-id/…` port and check that your account can access it. The archived HUG library has Intel-only macOS serial code. An Apple Silicon Mac would need an Intel Java runtime under Rosetta where available. Physical USB testing has been done on Windows. [Mac HUG download](https://apps.theradome.com/downloads/HugApplication-V200.zip) · [Java 8 jjs](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/jjs.html) · [Apple’s Rosetta notes](https://support.apple.com/en-us/102527)
+
+In **Settings**, choose the folder that already contains `treatments.csv` to continue an existing archive. The CSV, chart, and raw captures stay in that folder.
+
+1. Connect the charged helmet with a USB data cable, keep it off your head, and choose **Import treatments**. If prompted, hold the master switch until the helmet speaks its revision, then release it. The window reports when the import is complete.
+2. Choose **Open chart** to view the updated chart in your usual image viewer. This also works with the helmet disconnected.
+3. Choose **Sync clock…** only when you want to set the helmet’s clock. The window shows the laptop’s local time and asks you to confirm. The tool reads the helmet clock back after setting it.
+
+## Command-line setup
+
+The examples below use Windows PowerShell. Close HUG and other programs using the helmet’s port. Set the HUG folder and archive path as described above. The tool checks that the launcher matches the archived HUG build. [Package fingerprints](discovery.md)
 
 ```powershell
 $hugDir = 'C:\path\to\installed\HUG'
@@ -14,7 +25,7 @@ $historyDir = Join-Path $env:LOCALAPPDATA 'Theradome\LH40-history'
 $port = 'COM7'
 ```
 
-The USB path targets the **EVO LH40** with application revision **126** and bootloader revision **6**. In Device Manager, use the COM number next to the helmet’s **USB Serial Port**. Bluetooth ports are separate. [Driver setup and USB observations](usb-clock-details.md)
+On macOS or Linux, use `--hug-jar /path/to/Resources/myapp.jar` in place of `--hug-dir` and pass the USB device path to `--port`. Add `--jjs /path/to/jdk/bin/jjs` if the Java 8 executable is outside your PATH.
 
 ## Import over USB
 
@@ -64,6 +75,10 @@ Run the archive and simulated USB checks from the repository root. The archive c
 python -B -m unittest discover -s tests -p 'test_lh40_*.py'
 node tests/test_lh40_usb.js
 ```
+
+On a desktop with Tk and Matplotlib, `python -B tests/desktop_smoke.py` exercises the window using a temporary archive and a simulated helmet. It checks that importing generates the chart and that declining the separate clock confirmation sends no sync request.
+
+The Windows Start menu launch was verified with the existing archive. A Linux ARM64 test used a simulated serial port with the original HUG JAR and Java 8. It verified import through capture, CSV and chart generation, plus a separate clock sync through two advancing readbacks.
 
 On the physical LH40, the tool read the clock and treatment log over USB, added one new treatment to the existing CSV, and regenerated the chart. The simulated cases cover the terminal-clear sequences that preceded the live clock report.
 
