@@ -26,6 +26,10 @@ git push origin refs/tags/lh40-volume-v1.0.1
 
 The tag run builds the HEX and runs the offline checks. Once those pass, a second job downloads that exact build artifact, checks its SHA-256, and attaches `volume-settings.hex` and `SHA256SUMS` to a release draft. Review the notes and hardware coverage before publishing the draft. A rerun can finish a partial draft and will stop on a conflicting existing asset. [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml) · [Release drafts](https://github.com/qayshp/theradome-hug-research/releases)
 
+## Save treatment history and check the clock
+
+The Windows laptop tool reads completed treatments over USB, saves the raw replies locally, and updates a CSV and chart. It sets the helmet clock only when you run a separate sync command. [Laptop history and clock guide](docs/laptop-history.md)
+
 ## Follow the investigation
 
 The models and annotated assembly use the LH80-labeled application distributed with HUG. The live EVO LH40 also reported an LH80 diagnostic label. [USB and hardware evidence](docs/device.md) · [Application image](docs/firmware.md)

@@ -54,6 +54,8 @@ In an earlier pair of read-only checks, the helmet and laptop each advanced **4 
 
 ## Notes for a clock-sync tool
 
+The [laptop history and clock guide](laptop-history.md) shows how to read the current offset and explicitly request a sync.
+
 The later sync began with a roughly **28-minute 9-second** offset. The setter acknowledged the write with `Date Set`. Two subsequent reads were within one displayed second of the laptop clock and advanced by two seconds. Both alarms and the current alarm still reported disabled. Existing treatment timestamps retain the clock values stored when those sessions finished. [Live clock check](verification.md#live-evo-lh40-tests) · [Clock write](../model/rebuild.asm#L21202-L21233) · [Treatment record format](../model/eeprom.md)
 
 1. In an established Board Test session, use lowercase `t` for the time read and lowercase `a` for the optional alarm baseline. Single-byte menu commands are sent without terminators. A read-only mode can stop here.
