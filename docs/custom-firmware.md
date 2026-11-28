@@ -10,12 +10,12 @@ Charge the helmet and connect it to Windows with the USB data cable. Look for it
 
 ## Download and verify the HEX
 
-1. Sign in to GitHub and open the [Actions run with the tested HEX](https://github.com/qayshp/theradome-hug-research/actions/runs/45980237262). Under **Artifacts**, download and extract the ZIP containing `volume-settings.hex` and `SHA256SUMS`.
-2. [Download and extract the repository snapshot for that run](https://github.com/qayshp/theradome-hug-research/archive/9f8411bfbe04f57f28acaa6fb9bc9c8e246c2578.zip). This second ZIP contains the preparation tool. If the artifact has expired, use the [source build](#rebuild-a-reference-image) from this snapshot or use an artifact from a [newer successful `main` run](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml) with the same tested hash. [GitHub artifact downloads](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
-3. In PowerShell, set `$buildDir` to the extracted artifact folder. This checks both the downloaded checksum and the hash of the exact HEX tested on the helmet. Keep the window open for the next step.
+1. Open the [LH40 volume fix release](https://github.com/qayshp/theradome-hug-research/releases/tag/lh40-volume-v1.0.0). Under **Assets**, download `volume-settings.hex` and `SHA256SUMS` into the same folder. The public release downloads are available without a GitHub account.
+2. Download **Source code (zip)** from the same release and extract it into a separate folder. That folder contains the Windows preparation tool. It also contains the [source to rebuild the HEX](#rebuild-a-reference-image). [Build that produced the release HEX](https://github.com/qayshp/theradome-hug-research/actions/runs/46120466532)
+3. In PowerShell, set `$buildDir` to the folder holding the HEX and checksum. This checks both the downloaded checksum and the hash of the exact HEX tested on the helmet. Keep the window open for the next step.
 
 ```powershell
-$buildDir = 'C:\path\to\extracted\firmware-artifact'
+$buildDir = 'C:\path\to\downloaded\firmware'
 $hex = Join-Path $buildDir 'volume-settings.hex'
 $expected = ((Get-Content -LiteralPath (Join-Path $buildDir 'SHA256SUMS') -TotalCount 1) -split '\s+')[0]
 $actual = (Get-FileHash -LiteralPath $hex -Algorithm SHA256).Hash
@@ -25,7 +25,7 @@ if ($actual -ne $tested) { throw 'This HEX differs from the image tested on the 
 $actual
 ```
 
-Each Actions artifact comes with its own checksum. For a local rebuild, compare the hash printed by the builder directly with `$tested` above, then continue to HUG preparation. The hardware results apply to that exact image. [Tested build and digest](volume-settings.md#button-requested-count-follow-up)
+For a local rebuild, compare the hash printed by the builder directly with `$tested` above, then continue to HUG preparation. The hardware results apply to that exact image. [Tested build and digest](volume-settings.md#button-requested-count-follow-up)
 
 ## Prepare HUG on Windows
 

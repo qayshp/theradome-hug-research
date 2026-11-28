@@ -7,12 +7,13 @@ This repository documents Theradome’s HUG updater and a firmware change that s
 One **EVO LH40** reporting application revision **126** and bootloader revision **6** completed calibration and a full treatment with the tested volume image. Compatibility with other helmets remains unverified. [Live results](docs/volume-settings.md#live-count-readout-update) · [How to identify the device](docs/device.md)
 
 - [Install the tested volume fix on Windows](docs/custom-firmware.md) starts with checking the model and downloading the verified firmware file. It walks through preparing HUG, updating, and checking the result.
+- [Download the tested HEX and checksum](https://github.com/qayshp/theradome-hug-research/releases/tag/lh40-volume-v1.0.0) from the public release.
 - [Recover after a successful transfer](docs/board-test-recovery.md#recover-after-a-successful-transfer) covers calibration prompts and what to do if the helmet stays in Board Test.
 - [Build or edit the firmware from source](docs/custom-firmware.md#rebuild-a-reference-image) covers the stock rebuild, volume checks, and a small assembly example.
 
 ### GitHub Actions builds
 
-Successful runs on `main` attach `volume-settings.hex` and `SHA256SUMS`. The install guide identifies the exact image tested on the helmet and shows how to check the download. A manual run can also verify bundle preparation against Theradome's fingerprinted Windows installer. [Download and verify the HEX](docs/custom-firmware.md#download-and-verify-the-hex) · [Workflow](.github/workflows/firmware.yml) · [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml)
+Successful runs on `main` attach `volume-settings.hex` and `SHA256SUMS` for each build. A manual run can also verify bundle preparation against Theradome's fingerprinted Windows installer. The public release provides the exact tested HEX independently of Actions artifact retention. [Workflow](.github/workflows/firmware.yml) · [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml)
 
 ## Follow the investigation
 
