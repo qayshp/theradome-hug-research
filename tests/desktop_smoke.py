@@ -23,7 +23,7 @@ class DesktopSmokeTest(unittest.TestCase):
     def test_import_chart_and_explicit_sync(self):
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        directory = Path(temporary.name)
+        directory = Path(temporary.name).resolve()
         archive = directory / "archive"
         settings = directory / "settings.json"
         desktop.save_settings(settings, desktop.Settings(str(archive), "example HUG", port=PORT))
