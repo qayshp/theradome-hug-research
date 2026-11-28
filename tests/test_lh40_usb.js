@@ -32,7 +32,7 @@ function clock(epoch) {
     var date = new Date(epoch);
     function two(num) { return ("0" + num).slice(-2); }
     var weekday = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][date.getDay()];
-    return "Date Read - " + weekday + "   " + date.getFullYear() + "-" + two(date.getMonth() + 1) + "-" +
+    return "\u001b[H\u001b[JDate Read - " + weekday + "   " + date.getFullYear() + "-" + two(date.getMonth() + 1) + "-" +
         two(date.getDate()) + "\n\rTime Read - " + two(date.getHours()) + ":" + two(date.getMinutes()) + ":" +
         two(date.getSeconds()) + "\n\r";
 }
@@ -83,7 +83,7 @@ function fails(io, mode, expected) {
 }
 
 var validClock = clock(START);
-var sessionStart = [BANNER, MENU, parameters(1), validClock];
+var sessionStart = [BANNER, MENU, parameters(1), BANNER + validClock];
 var afterSet = function (io) { return clock(io.now()); };
 
 var direct = fake(sessionStart.concat(TREATMENT_HEAD + ROW));
@@ -91,7 +91,7 @@ usb.runSession(direct, "import", 10);
 sent(direct, ["?", "D", "t", "V", "\u001b"]);
 assert(direct.logins === 0, "An existing Board Test session does not need another login");
 assert(direct.captures["parameters.txt"] === parameters(1), "D raw bytes should be preserved");
-assert(direct.captures["clock-before.txt"] === validClock, "The raw t response should be kept");
+assert(direct.captures["clock-before.txt"] === BANNER + validClock, "The raw t response should be kept");
 assert(/^\d+\n$/.test(direct.captures["clock-before-host-ms.txt"]), "Missing laptop time midpoint");
 assert(direct.captures["treatment-count.txt"] === "1\n", "Missing EEPROM treatment count");
 assert(direct.captures["treatments.txt"] === TREATMENT_HEAD + ROW, "Missing complete raw treatment table");

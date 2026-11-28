@@ -4,7 +4,7 @@ var BOARD_PROMPT = /THERADOME LH(?:40|80)[ \t]+-[ \t]+BOARD TEST[^\r\n]*[\r\n]+P
 var LOGIN_PROMPT = /Enter Password[ \t]*-/;
 var MENU_END = /\[ESC\] Exit COM Mode/;
 var PARAMETERS_END = /(?:^|[\r\n])UPGRADE INSTALL DATE[ \t]*-[^\r\n]*[\r\n]/;
-var CLOCK_END = /(?:^|[\r\n])Date Read[ \t]*-[^\r\n]*[\r\n]+Time Read[ \t]*-[^\r\n]*[\r\n]/;
+var CLOCK_REPORT = /(?:^|[\r\n])Date Read[ \t]*-[ \t]*([A-Z]{3})[ \t]+(\d{4})-(\d{2})-(\d{2})[ \t]*[\r\n]+Time Read[ \t]*-[ \t]*(\d{2}):(\d{2}):(\d{2})[ \t]*[\r\n]/;
 var DATE_PROMPT = /Enter Date as YYYY-MM-DD-WW[\s]*WW - 00=Sunday\.\.06=Saturday[ \t]*-[ \t]+$/;
 var TIME_PROMPT = /Enter Time as HH:MM:SS[ \t]*-[ \t]+$/;
 var CLOCK_ACK = /(?:^|[\r\n])Date Set[ \t]*[\r\n]/;
@@ -42,8 +42,13 @@ function civilHostMillis(date) {
         date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds());
 }
 
+function clockReport(raw) {
+    // The helmet clears the terminal before Date Read, without a line break.
+    return CLOCK_REPORT.exec(raw.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, ""));
+}
+
 function civilHelmetMillis(raw) {
-    var match = /(?:^|[\r\n])Date Read[ \t]*-[ \t]*([A-Z]{3})[ \t]+(\d{4})-(\d{2})-(\d{2})[ \t]*[\r\n]+Time Read[ \t]*-[ \t]*(\d{2}):(\d{2}):(\d{2})[ \t]*[\r\n]/.exec(raw);
+    var match = clockReport(raw);
     if (!match) throw new Error("Helmet clock readback format was unexpected.");
     var year = Number(match[2]), month = Number(match[3]), day = Number(match[4]);
     var hour = Number(match[5]), minute = Number(match[6]), second = Number(match[7]);
@@ -95,7 +100,7 @@ function runSession(io, mode, wakeSeconds) {
 
     function readClock(filename) {
         var started = io.now();
-        var raw = exchange("t", function (text) { return CLOCK_END.test(text); }, 3500,
+        var raw = exchange("t", function (text) { return clockReport(text) !== null; }, 3500,
             filename, true, "The helmet clock response was incomplete.");
         return {raw: raw, midpoint: Math.round((started + io.now()) / 2)};
     }

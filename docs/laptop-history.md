@@ -65,4 +65,4 @@ python -B -m unittest discover -s tests -p 'test_lh40_*.py'
 node tests/test_lh40_usb.js
 ```
 
-The saved USB display and existing CSV were also replayed with the actual chart renderer. The clock protocol was previously exercised on the [physical LH40](verification.md#live-evo-lh40-tests). The new wrapper’s serial sequence is tested offline.
+On the physical LH40, the tool read the clock and treatment log over USB, added one new treatment to the existing CSV, and regenerated the chart. The simulated cases cover the terminal-clear sequences that preceded the live clock report. The tool’s clock-write sequence is tested offline. An earlier hardware session exercised the same clock protocol. [Live clock check](verification.md#live-evo-lh40-tests)
