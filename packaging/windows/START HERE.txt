@@ -1,0 +1,34 @@
+LH40 History for Windows
+========================
+
+1. Extract the entire ZIP from File Explorer and keep the LH40 History
+   folder together. Double-click LH40 History.exe inside it. The download
+   includes the Python runtime and charting library.
+
+2. For USB, install Theradome's original Windows HUG package if it is not
+   already installed. Note the folder selected by the installer.
+   https://apps.theradome.com/downloads/HugApplication.exe
+
+   The installer normally uses a HugApplication folder under Program Files
+   (x86). LH40 History checks the standard locations. For a custom
+   location, use Settings > Original HUG folder > Browse and select the
+   folder containing HugUpgrade.exe and jre\bin\jjs.exe. Leave HUG closed
+   while LH40 History uses the port.
+
+3. Connect a charged EVO LH40 with a USB data cable. The tested unit reports
+   revision 126.6. In Device Manager, find USB Serial Port (COM...) under
+   Ports and select that number in LH40 History. If the port is missing,
+   see the FTDI driver and troubleshooting steps in the guide below.
+
+4. Choose Import treatments. If the app asks, hold the master switch with
+   the helmet off your head until it speaks its revision, then release.
+   Open chart displays the generated PNG. Sync clock is a separate action
+   and asks for confirmation before changing the helmet's time.
+
+The archive, chart and raw USB captures are stored locally. If you already
+have a treatments.csv archive, choose its existing folder in Settings.
+
+Guide and driver setup
+https://github.com/qayshp/theradome-hug-research/blob/main/docs/laptop-history.md
+
+Third-party notices are in _internal\notices.

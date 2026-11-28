@@ -24,6 +24,8 @@ CHART_NAME = "treatment-history.png"
 def archive_directory(path):
     archive = path.expanduser().resolve()
     if archive.is_relative_to(TOOLS.parent):
+        if getattr(sys, "frozen", False):
+            raise ArchiveError("Choose an archive folder outside the extracted application.")
         raise ArchiveError("Choose an archive folder outside this repository.")
     archive.mkdir(parents=True, exist_ok=True)
     return archive
@@ -89,6 +91,8 @@ def get_chart_renderer():
     try:
         from lh40_chart import render_chart
     except ImportError as error:
+        if getattr(sys, "frozen", False):
+            raise ArchiveError("The chart library is missing. Extract the full LH40 History ZIP again.") from error
         raise ArchiveError("Install Matplotlib with python -m pip install 'matplotlib>=3.6'.") from error
     return render_chart
 
@@ -115,28 +119,53 @@ def get_hug_runtime(path, jjs_path=None):
     return jjs, launcher
 
 
+@contextmanager
+def external_program_environment():
+    bundle = getattr(sys, "_MEIPASS", None)
+    if os.name != "nt" or bundle is None:
+        yield
+        return
+
+    # The installed HUG JVM and the image viewer use their own DLLs. The
+    # PyInstaller DLL directory would otherwise be inherited by these processes.
+    import ctypes
+
+    set_directory = ctypes.WinDLL("kernel32", use_last_error=True).SetDllDirectoryW
+    set_directory.argtypes = (ctypes.c_wchar_p,)
+    if not set_directory(None):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        yield
+    finally:
+        if not set_directory(bundle):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+
 def run_usb(mode, runtime, port, capture, wake_seconds, *, progress=None):
     jjs, launcher = runtime
     command = [str(jjs), "-scripting", "-cp", str(launcher), str(TOOLS / "lh40_usb.js"),
                "--", mode, port, str(capture), str(wake_seconds)]
-    if progress is None:
-        code = subprocess.run(command, check=False).returncode
-    else:
-        failure = ""
-        with subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    options = {}
+    if progress is not None:
+        options = dict(
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, encoding="utf-8", errors="replace",
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
-        ) as process:
+        )
+    with external_program_environment():
+        process = subprocess.Popen(command, **options)
+    failure = ""
+    with process:
+        if progress is not None:
             for line in process.stdout:
                 message = line.strip()
                 if message.startswith("USB session failed."):
                     failure = message
                 if message:
                     progress(message)
-            code = process.wait()
-        if code and failure:
-            raise ArchiveError(failure)
+        code = process.wait()
+    if code and failure:
+        raise ArchiveError(failure)
     if code:
         raise ArchiveError(f"USB {mode} did not complete. Review the output and saved responses.")
 

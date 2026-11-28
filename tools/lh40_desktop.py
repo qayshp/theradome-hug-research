@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import filedialog, font, messagebox, ttk
 
 from lh40_archive import load_history
-from lh40_history import CHART_NAME, CSV_NAME, archive_directory, port_name, run_operation
+from lh40_history import CHART_NAME, CSV_NAME, archive_directory, external_program_environment, port_name, run_operation
 
 
 APP_NAME = "LH40 History"
@@ -38,11 +38,27 @@ class Settings:
     port: str = ""
 
 
+def default_hug_directory():
+    if os.name != "nt":
+        return ""
+    for variable, folder in (
+        ("ProgramFiles(x86)", "HugApplication"),
+        ("ProgramFiles", "HugApplication"),
+        ("LOCALAPPDATA", "Programs/HugApplication"),
+    ):
+        base = os.environ.get(variable)
+        if base:
+            candidate = Path(base) / folder
+            if (candidate / "HugUpgrade.exe").is_file() and (candidate / "jre/bin/jjs.exe").is_file():
+                return str(candidate)
+    return ""
+
+
 def load_settings(path):
     values = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     if not isinstance(values, dict):
         raise ValueError("Settings must contain app preferences.")
-    defaults = Settings(str(local_app_directory()))
+    defaults = Settings(str(local_app_directory()), hug=default_hug_directory())
     return Settings(**{
         field.name: values[field.name]
         if isinstance(values.get(field.name), str) else getattr(defaults, field.name)
@@ -85,7 +101,8 @@ def available_ports():
 
 def open_chart_file(path):
     if os.name == "nt":
-        os.startfile(path)
+        with external_program_environment():
+            os.startfile(path)
     else:
         program = "open" if sys.platform == "darwin" else "xdg-open"
         subprocess.Popen([program, str(path)], stdin=subprocess.DEVNULL,

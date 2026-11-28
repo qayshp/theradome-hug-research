@@ -4,9 +4,18 @@ LH40 History reads the helmet’s treatment log into a local CSV and redraws the
 
 ## Desktop app
 
+### Windows download
+
+1. Download the LH40 History Windows ZIP from GitHub Releases. Choose **x64** for a 64-bit Intel or AMD PC or **ARM64** for Windows 11 on Arm. **Settings > System > About** shows your system type. [GitHub Releases](https://github.com/qayshp/theradome-hug-research/releases)
+2. In File Explorer, use **Extract All** and open `LH40 History.exe` inside the extracted folder. Keep the whole folder together. The ZIP includes Python, the charting library and a `START HERE.txt` guide.
+3. For USB, install Theradome’s original Windows HUG package if needed. Its Java runtime is included with HUG. LH40 History checks its standard install locations, including `C:\Program Files (x86)\HugApplication`. For a custom installation, use **Settings > Original HUG folder > Browse** and select the folder containing `HugUpgrade.exe` and `jre\bin\jjs.exe`. Close HUG before importing. [Windows HUG download](https://apps.theradome.com/downloads/HugApplication.exe) · [Installer fingerprint](discovery.md)
+4. Connect the helmet with a USB data cable and choose its COM number. If it does not appear as a USB Serial Port in Device Manager, check the FTDI driver for your Windows architecture. [USB driver setup](usb-clock-details.md#windows-arm64-driver-setup) · [FTDI drivers](https://ftdichip.com/drivers/vcp-drivers/)
+
+### Run from source
+
 Use Python 3.10 or newer with Tk and install Matplotlib once with `python -m pip install "matplotlib>=3.6"`. Open the complete repository folder so the launcher can find its supporting files. [Python for Windows](https://www.python.org/downloads/windows/) · [Tk setup](https://docs.python.org/3/library/tkinter.html)
 
-- **Windows.** Open `Open LH40 History.pyw` from File Explorer using the `pythonw.exe` from your Python installation or environment. A shortcut to that executable with the launcher’s full path as its argument opens the same window from the Start menu or desktop. In **Settings**, select the original HUG folder containing `HugUpgrade.exe` and `jre\bin\jjs.exe`. Use the helmet’s COM number in the port list. [Windows HUG download](https://apps.theradome.com/downloads/HugApplication.exe) · [USB driver setup](usb-clock-details.md#windows-arm64-driver-setup)
+- **Windows.** Open `Open LH40 History.pyw` from File Explorer using the `pythonw.exe` from your Python installation or environment. Configure HUG and the COM port as described above.
 - **macOS and Linux.** Run `python3 tools/lh40_desktop.py`. In **Settings**, choose `Resources/myapp.jar` from the original Mac HUG archive and choose `bin/jjs` from a Java 8 JDK if it is outside your PATH. On macOS, select the helmet’s `/dev/cu.usbserial…` port. On Linux, select its `/dev/ttyUSB…` or `/dev/serial/by-id/…` port and check that your account can access it. The archived HUG library has Intel-only macOS serial code. An Apple Silicon Mac would need an Intel Java runtime under Rosetta where available. Physical USB testing has been done on Windows. [Mac HUG download](https://apps.theradome.com/downloads/HugApplication-V200.zip) · [Java 8 jjs](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/jjs.html) · [Apple’s Rosetta notes](https://support.apple.com/en-us/102527)
 
 In **Settings**, choose the folder that already contains `treatments.csv` to continue an existing archive. The CSV, chart, and raw captures stay in that folder.
@@ -94,3 +103,7 @@ On November 28, 2026, both tests ran from the LH40 History Start menu shortcut o
 | **Sync clock…** | The app showed the laptop’s local time, asked for confirmation, and then prompted for a master-switch hold. The helmet acknowledged the write with `Date Set`. Two separate USB readbacks advanced by two seconds and each matched the laptop’s displayed second. The app displayed “Clock synced and verified against the laptop.” |
 
 The raw replies and personal treatment timestamps are stored in the local archive.
+
+## Build the Windows download
+
+The packaging workflow builds the portable ZIPs on separate x64 and ARM64 Windows runners using Python 3.13.17. It runs the history and desktop tests, launches the executable extracted from each ZIP in self-test mode, and uploads each ZIP with its SHA-256. The self-test exercises the bundled desktop, chart renderer and USB script without opening a serial port. [Windows packaging workflow](../.github/workflows/desktop-windows.yml)

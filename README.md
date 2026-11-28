@@ -28,7 +28,7 @@ The tag run builds the HEX and runs the offline checks. Once those pass, a secon
 
 ## Save treatment history and check the clock
 
-The LH40 History desktop app and command-line tool read completed treatments over USB, save the raw replies locally, and update a CSV and chart. **Sync clock** is a separate action with its own confirmation in the app. [Laptop history and clock guide](docs/laptop-history.md)
+The LH40 History desktop app and command-line tool read completed treatments over USB, save the raw replies locally, and update a CSV and chart. **Sync clock** is a separate action with its own confirmation in the app. The Windows download includes Python. [Windows download and HUG setup](docs/laptop-history.md#windows-download) · [GitHub Releases](https://github.com/qayshp/theradome-hug-research/releases)
 
 ## Follow the investigation
 

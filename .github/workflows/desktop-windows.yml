@@ -1,0 +1,101 @@
+name: Package LH40 History for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/desktop-windows.yml'
+      - 'packaging/windows/**'
+      - 'tools/lh40_*'
+      - 'tools/verify_packages.py'
+      - 'tests/test_lh40_*'
+      - 'tests/desktop_smoke.py'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13.17'
+          architecture: ${{ matrix.arch }}
+
+      - name: Install packaging dependencies
+        run: python -m pip install --only-binary=:all: -r packaging/windows/requirements.txt
+
+      - name: Test history, serial protocol and desktop actions
+        run: |
+          python -B -m unittest discover -s tests -p 'test_lh40_*.py'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node tests/test_lh40_usb.js
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -B tests/desktop_smoke.py
+
+      - name: Build the portable ZIP
+        env:
+          BUILD_ARCH: ${{ matrix.arch }}
+        run: |
+          $dist = Join-Path $env:RUNNER_TEMP 'desktop-dist'
+          $work = Join-Path $env:RUNNER_TEMP 'desktop-work'
+          python -m PyInstaller --noconfirm --clean --distpath $dist --workpath $work packaging/windows/lh40-history.spec
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+          $app = Join-Path $dist 'LH40 History'
+          Copy-Item -LiteralPath 'packaging/windows/START HERE.txt' -Destination $app
+          $releaseDir = Join-Path $env:RUNNER_TEMP 'desktop-release'
+          New-Item -ItemType Directory -Path $releaseDir | Out-Null
+          $zip = Join-Path $releaseDir "lh40-history-windows-$env:BUILD_ARCH.zip"
+          python -m zipfile -c $zip $app
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path $zip -Leaf)" | Set-Content -LiteralPath "$zip.sha256" -Encoding ascii
+
+      - name: Start the executable extracted from the ZIP
+        env:
+          BUILD_ARCH: ${{ matrix.arch }}
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "desktop-release/lh40-history-windows-$env:BUILD_ARCH.zip"
+          $smokeDir = Join-Path $env:RUNNER_TEMP 'desktop-smoke'
+          Expand-Archive -LiteralPath $zip -DestinationPath $smokeDir
+          $exe = Join-Path $smokeDir 'LH40 History/LH40 History.exe'
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          foreach ($variable in 'PYTHONHOME', 'PYTHONPATH', 'TCL_LIBRARY', 'TK_LIBRARY') {
+            [Environment]::SetEnvironmentVariable($variable, $null, 'Process')
+          }
+          $smoke = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+          if (-not $smoke.WaitForExit(90000)) {
+            $smoke.Kill()
+            throw 'The packaged app self-test timed out.'
+          }
+          if ($smoke.ExitCode -ne 0) {
+            throw "The packaged app self-test failed with exit code $($smoke.ExitCode)."
+          }
+
+      - name: Upload the tested ZIP and checksum
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lh40-history-windows-${{ matrix.arch }}
+          path: ${{ runner.temp }}/desktop-release/
+          compression-level: 0
+          if-no-files-found: error
