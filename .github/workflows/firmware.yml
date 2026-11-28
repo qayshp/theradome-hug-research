@@ -3,6 +3,7 @@ name: Firmware build and checks
 on:
   push:
     branches: [main]
+    tags: ['lh40-volume-v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -21,8 +22,12 @@ defaults:
 
 jobs:
   build:
+    if: ${{ !github.event.deleted }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      source_commit: ${{ steps.firmware.outputs.source_commit }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,6 +53,7 @@ jobs:
           python3 -B model/check_voice_numbers.py
 
       - name: Build the volume HEX and verify against the archived warning build
+        id: firmware
         run: |
           artifact_dir="$RUNNER_TEMP/theradome-firmware"
           baseline_dir="$RUNNER_TEMP/theradome-volume-baseline"
@@ -69,6 +75,7 @@ jobs:
           end = validate_image(Path(sys.argv[1]).read_bytes())
           print(f"HUG record layout verified through 0x{end - 1:04X}")
           PY
+          printf 'source_commit=%s\n' "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           cd "$artifact_dir"
           sha256sum volume-settings.hex > SHA256SUMS
           sha256sum --check SHA256SUMS
@@ -98,11 +105,109 @@ jobs:
             "$RUNNER_TEMP/theradome-firmware/volume-settings.hex" "$hug_dir/HugLocal.jar"
 
       - name: Upload the verified HEX and checksum
-        if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+        id: upload
+        if: ${{ github.ref == 'refs/heads/main' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/lh40-volume-v')) }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: theradome-volume-settings-${{ github.sha }}
+          name: theradome-volume-settings-${{ github.sha }}${{ github.run_attempt != 1 && format('-attempt-{0}', github.run_attempt) || '' }}
           path: |
             ${{ runner.temp }}/theradome-firmware/volume-settings.hex
             ${{ runner.temp }}/theradome-firmware/SHA256SUMS
           if-no-files-found: error
+
+  release:
+    name: Prepare firmware release draft
+    needs: build
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/lh40-volume-v') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: firmware-release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Check the build artifact ID
+        env:
+          ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+        run: test -n "$ARTIFACT_ID"
+
+      - name: Download the artifact from the successful build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: ${{ runner.temp }}/theradome-release
+          merge-multiple: true
+
+      - name: Attach and verify the release assets
+        working-directory: ${{ runner.temp }}/theradome-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ needs.build.outputs.source_commit }}
+        run: |
+          sha256sum --check --strict SHA256SUMS
+          tag="$GITHUB_REF_NAME"
+          endpoint="repos/$GITHUB_REPOSITORY/releases"
+          commit="$(gh api "repos/$GITHUB_REPOSITORY/commits/tags/$tag" --jq .sha)"
+          if [[ "$commit" != "$SOURCE_COMMIT" ]]; then
+            echo 'The tag no longer points to the commit checked by the build.' >&2
+            exit 1
+          fi
+
+          find_release() {
+            gh api --paginate "$endpoint?per_page=100" |
+              jq -cs --arg tag "$tag" '
+                [.[][] | select(.tag_name == $tag)] |
+                if length > 1 then error("More than one release matches the tag") else .[0] // empty end'
+          }
+
+          asset_digest() {
+            sha256sum "$1" | awk '{print "sha256:" $1}'
+          }
+
+          release="$(find_release)"
+          if [[ -z "$release" ]]; then
+            run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            guide_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$SOURCE_COMMIT/docs/custom-firmware.md#prepare-hug-on-windows"
+            notes="GitHub Actions built this HEX from $SOURCE_COMMIT and verified it with the offline checks. Download volume-settings.hex and SHA256SUMS together and verify the checksum before preparing HUG. [Build and checks]($run_url) · [HUG preparation guide]($guide_url)"
+            gh release create "$tag" volume-settings.hex SHA256SUMS --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --draft --title "LH40 volume fix ${tag#lh40-volume-}" --notes "$notes"
+            release="$(find_release)"
+            if [[ -z "$release" ]]; then
+              sleep 2
+              release="$(find_release)"
+            fi
+          fi
+          if [[ -z "$release" ]]; then
+            echo 'Release lookup returned no draft after creation. Rerun to verify the existing draft.' >&2
+            exit 1
+          fi
+
+          release_id="$(jq -er .id <<< "$release")"
+          missing=()
+          for file in volume-settings.hex SHA256SUMS; do
+            asset="$(jq -c --arg file "$file" '.assets[] | select(.name == $file)' <<< "$release")"
+            if [[ -z "$asset" ]]; then
+              missing+=("$file")
+            elif ! jq -e --arg digest "$(asset_digest "$file")" \
+              '.state == "uploaded" and .digest == $digest' <<< "$asset" > /dev/null; then
+              echo "Existing release asset differs from the verified build: $file" >&2
+              exit 1
+            fi
+          done
+
+          if (( ${#missing[@]} )); then
+            if ! jq -e .draft <<< "$release" > /dev/null; then
+              echo 'A published release is missing an asset. Use a new tag to prepare a draft.' >&2
+              exit 1
+            fi
+            gh release upload "$tag" "${missing[@]}" --repo "$GITHUB_REPOSITORY"
+          fi
+
+          release="$(gh api "$endpoint/$release_id")"
+          for file in volume-settings.hex SHA256SUMS; do
+            jq -e --arg file "$file" --arg digest "$(asset_digest "$file")" \
+              'any(.assets[]; .name == $file and .state == "uploaded" and .digest == $digest)' \
+              <<< "$release" > /dev/null
+          done
+          printf 'Verified build assets: %s\n' "$(jq -er .html_url <<< "$release")"

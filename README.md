@@ -15,6 +15,17 @@ One **EVO LH40** reporting application revision **126** and bootloader revision 
 
 Successful runs on `main` attach `volume-settings.hex` and `SHA256SUMS` for each build. A manual run can also verify bundle preparation against Theradome's fingerprinted Windows installer. The public release provides the exact tested HEX independently of Actions artifact retention. [Workflow](.github/workflows/firmware.yml) · [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml)
 
+#### Prepare a tagged release
+
+From a checkout at the commit you intend to release, push one new `lh40-volume-v*` tag. Use a commit that includes the tag workflow. For example, for version `1.0.1` run the following commands.
+
+```sh
+git tag lh40-volume-v1.0.1
+git push origin refs/tags/lh40-volume-v1.0.1
+```
+
+The tag run builds the HEX and runs the offline checks. Once those pass, a second job downloads that exact build artifact, checks its SHA-256, and attaches `volume-settings.hex` and `SHA256SUMS` to a release draft. Review the notes and hardware coverage before publishing the draft. A rerun can finish a partial draft and will stop on a conflicting existing asset. [Firmware runs](https://github.com/qayshp/theradome-hug-research/actions/workflows/firmware.yml) · [Release drafts](https://github.com/qayshp/theradome-hug-research/releases)
+
 ## Follow the investigation
 
 The models and annotated assembly use the LH80-labeled application distributed with HUG. The live EVO LH40 also reported an LH80 diagnostic label. [USB and hardware evidence](docs/device.md) · [Application image](docs/firmware.md)
