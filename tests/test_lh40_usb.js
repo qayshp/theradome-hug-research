@@ -3,7 +3,7 @@ var LH40_USB_LIBRARY = true;
 var usb;
 if (typeof load === "function") {
     load("tools/lh40_usb.js");
-    usb = {runSession: runSession};
+    usb = {runSession: runSession, normalizePortName: normalizePortName};
 } else {
     var fs = require("fs");
     var vm = require("vm");
@@ -81,6 +81,19 @@ function fails(io, mode, expected) {
     }
     throw new Error("Expected USB operation to fail");
 }
+
+assert(usb.normalizePortName("cOm7") === "COM7", "Windows port names should be normalized");
+[
+    "/dev/cu.usbserial-FT123ab",
+    "/dev/ttyUSB12",
+    "/dev/ttyACM0",
+    "/dev/serial/by-id/usb-Theradome_FT123ab-if00-port0"
+].forEach(function (name) {
+    assert(usb.normalizePortName(name) === name, "Device path must be preserved: " + name);
+});
+["COM0", "/dev/ttyusb12", "/dev/null", "/dev/serial/by-id/../other", "COM7\n"].forEach(function (name) {
+    assert(usb.normalizePortName(name) === null, "Unrecognized port must be rejected: " + name);
+});
 
 var validClock = clock(START);
 var sessionStart = [BANNER, MENU, parameters(1), BANNER + validClock];

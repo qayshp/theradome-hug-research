@@ -13,7 +13,7 @@ import sys
 from tempfile import TemporaryDirectory, mkdtemp
 
 from lh40_archive import ArchiveError, load_history, merge_history, parse_treatments, serialize_history
-from verify_packages import WINDOWS_LAUNCHER
+from verify_packages import MAC_JAR, WINDOWS_LAUNCHER
 
 
 TOOLS = Path(__file__).resolve().parent
@@ -57,7 +57,7 @@ def archive_lock(archive):
         yield
 
 
-def update_history(archive, source, completed_count, render_chart):
+def update_history(archive, source, completed_count, render_chart, *, progress=print):
     capture = parse_treatments(source.read_bytes().decode("latin-1"), expected_count=completed_count)
     csv_path = archive / CSV_NAME
 
@@ -75,13 +75,14 @@ def update_history(archive, source, completed_count, render_chart):
             # open in another program, replaying the raw capture repairs it.
             os.replace(staged_chart, archive / CHART_NAME)
 
-    print(f"{result.added_count} new treatments, {len(result.rows)} archived.")
-    print(f"CSV: {csv_path}")
-    print(f"Chart: {archive / CHART_NAME}")
+    progress(f"{result.added_count} new treatments, {len(result.rows)} archived.")
+    progress(f"CSV: {csv_path}")
+    progress(f"Chart: {archive / CHART_NAME}")
     if result.gaps:
         ranges = ", ".join(str(start) if start == end else f"{start}-{end}"
                            for start, end in result.gaps)
-        print(f"Treatment numbers missing from the archive: {ranges}")
+        progress(f"Treatment numbers missing from the archive: {ranges}")
+    return result
 
 
 def get_chart_renderer():
@@ -92,27 +93,55 @@ def get_chart_renderer():
     return render_chart
 
 
-def get_hug_runtime(path):
+def get_hug_runtime(path, jjs_path=None):
     hug = path.expanduser().resolve()
-    launcher = hug / "HugUpgrade.exe"
-    jjs = hug / "jre" / "bin" / "jjs.exe"
-    if not launcher.is_file() or not jjs.is_file():
-        raise ArchiveError("Choose the original HUG folder containing HugUpgrade.exe and jre/bin/jjs.exe.")
-    if hashlib.sha256(launcher.read_bytes()).hexdigest() != WINDOWS_LAUNCHER:
-        raise ArchiveError("HugUpgrade.exe differs from the archived Windows build. Use the original HUG launcher.")
+    if path.suffix.lower() != ".jar":
+        launcher = hug / "HugUpgrade.exe"
+        jjs = hug / "jre" / "bin" / "jjs.exe"
+        if not launcher.is_file() or not jjs.is_file():
+            raise ArchiveError("Choose the original HUG folder containing HugUpgrade.exe and jre/bin/jjs.exe.")
+        expected = WINDOWS_LAUNCHER
+    else:
+        launcher = hug
+        expected = MAC_JAR
+        if not launcher.is_file():
+            raise ArchiveError("Choose the original HUG myapp.jar.")
+        jjs = jjs_path.expanduser().resolve() if jjs_path else shutil.which("jjs")
+        if not jjs or not Path(jjs).is_file():
+            raise ArchiveError("Choose the Java 8 JDK's bin/jjs executable.")
+        jjs = Path(jjs).resolve()
+    if hashlib.sha256(launcher.read_bytes()).hexdigest() != expected:
+        raise ArchiveError(f"{launcher.name} differs from the archived HUG build. Choose the original application.")
     return jjs, launcher
 
 
-def run_usb(mode, runtime, port, capture, wake_seconds):
+def run_usb(mode, runtime, port, capture, wake_seconds, *, progress=None):
     jjs, launcher = runtime
     command = [str(jjs), "-scripting", "-cp", str(launcher), str(TOOLS / "lh40_usb.js"),
                "--", mode, port, str(capture), str(wake_seconds)]
-    result = subprocess.run(command, check=False)
-    if result.returncode:
+    if progress is None:
+        code = subprocess.run(command, check=False).returncode
+    else:
+        failure = ""
+        with subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        ) as process:
+            for line in process.stdout:
+                message = line.strip()
+                if message.startswith("USB session failed."):
+                    failure = message
+                if message:
+                    progress(message)
+            code = process.wait()
+        if code and failure:
+            raise ArchiveError(failure)
+    if code:
         raise ArchiveError(f"USB {mode} did not complete. Review the output and saved responses.")
 
 
-def show_clock_offset(capture):
+def show_clock_offset(capture, *, progress=print):
     report = (capture / "clock-before.txt").read_bytes().decode("latin-1")
     date = re.search(r"Date Read - [A-Z]{3} +([0-9]{4}-[0-9]{2}-[0-9]{2})", report)
     time = re.search(r"Time Read - ([0-9]{2}:[0-9]{2}:[0-9]{2})", report)
@@ -123,17 +152,39 @@ def show_clock_offset(capture):
         host_ms = int((capture / "clock-before-host-ms.txt").read_text(encoding="ascii"))
         host_time = datetime.fromtimestamp(host_ms / 1000)
     except (ValueError, OverflowError):
-        print("The helmet clock was recorded but could not be compared with the laptop clock.")
+        progress("The helmet clock was recorded but could not be compared with the laptop clock.")
         return
     offset = round((helmet_time - host_time).total_seconds())
-    print(f"Helmet clock: {helmet_time:%Y-%m-%d %H:%M:%S} (helmet local time).")
-    print(f"Approximate clock offset (helmet minus laptop): {offset:+d} seconds.")
+    progress(f"Helmet clock: {helmet_time:%Y-%m-%d %H:%M:%S} (helmet local time).")
+    progress(f"Approximate clock offset (helmet minus laptop): {offset:+d} seconds.")
+
+
+def run_operation(mode, archive, hug_path, port, wait, *, jjs_path=None, progress=None):
+    if mode not in ("import", "sync-clock"):
+        raise ValueError("Unknown USB operation.")
+    archive = archive_directory(archive)
+    render_chart = get_chart_renderer() if mode == "import" else None
+    runtime = get_hug_runtime(hug_path, jjs_path)
+    capture = capture_directory(archive)
+    report = progress or (lambda message: print(message, flush=True))
+    report(f"Local capture: {capture}")
+    run_usb(mode, runtime, port, capture, wait, progress=progress)
+    if mode == "import":
+        count = int((capture / "treatment-count.txt").read_text(encoding="ascii"))
+        show_clock_offset(capture, progress=report)
+        return update_history(archive, capture / "treatments.txt", count, render_chart, progress=report)
+    return None
 
 
 def port_name(value):
-    if not re.fullmatch(r"COM[1-9][0-9]*", value.upper()):
-        raise argparse.ArgumentTypeError("Use a Windows port name such as COM7.")
-    return value.upper()
+    if os.name == "nt":
+        if re.fullmatch(r"COM[1-9][0-9]*", value.upper()):
+            return value.upper()
+        raise argparse.ArgumentTypeError("Choose a Windows port such as COM7.")
+    if re.fullmatch(r"/dev/(?:cu\.[A-Za-z0-9][A-Za-z0-9._:-]*|tty(?:USB|ACM)[0-9]+|"
+                    r"serial/by-id/[A-Za-z0-9][A-Za-z0-9._:-]*)", value):
+        return value
+    raise argparse.ArgumentTypeError("Choose a USB serial port such as /dev/cu.usbserial or /dev/ttyUSB0.")
 
 
 def wake_seconds(value):
@@ -157,8 +208,11 @@ def parser():
             command.add_argument("log", type=Path, help="Saved raw treatment display.")
             command.add_argument("--completed-count", type=int, help="Lifetime count reported at capture time.")
         else:
-            command.add_argument("--hug-dir", required=True, type=Path, help="Original Windows HUG application folder.")
-            command.add_argument("--port", required=True, type=port_name, help="Windows port, for example COM7.")
+            source = command.add_mutually_exclusive_group(required=True)
+            source.add_argument("--hug-dir", type=Path, help="Original Windows HUG application folder.")
+            source.add_argument("--hug-jar", type=Path, help="Original myapp.jar from Mac HUG.")
+            command.add_argument("--jjs", type=Path, help="Java 8 bin/jjs for --hug-jar. Defaults to jjs on PATH.")
+            command.add_argument("--port", required=True, type=port_name, help="USB serial port.")
             command.add_argument("--wake-seconds", type=wake_seconds, default=60, help="Time to wait for the switch hold.")
     return result
 
@@ -166,26 +220,19 @@ def parser():
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
-        archive = archive_directory(args.archive)
-        if args.mode != "sync-clock":
-            render_chart = get_chart_renderer()
-        if args.mode != "import-log":
-            runtime = get_hug_runtime(args.hug_dir)
-
-        capture = capture_directory(archive)
-        print(f"Local capture: {capture}", flush=True)
         if args.mode == "import-log":
+            archive = archive_directory(args.archive)
+            render_chart = get_chart_renderer()
+            capture = capture_directory(archive)
+            print(f"Local capture: {capture}", flush=True)
             source = capture / "treatments.txt"
             shutil.copyfile(args.log, source)
             if args.completed_count is not None:
                 (capture / "treatment-count.txt").write_text(f"{args.completed_count}\n", encoding="ascii")
             update_history(archive, source, args.completed_count, render_chart)
         else:
-            run_usb(args.mode, runtime, args.port, capture, args.wake_seconds)
-            if args.mode == "import":
-                completed_count = int((capture / "treatment-count.txt").read_text(encoding="ascii"))
-                show_clock_offset(capture)
-                update_history(archive, capture / "treatments.txt", completed_count, render_chart)
+            run_operation(args.mode, args.archive, args.hug_dir or args.hug_jar,
+                          args.port, args.wake_seconds, jjs_path=args.jjs)
     except (OSError, ValueError) as error:
         print(f"LH40 history: {error}", file=sys.stderr)
         return 1

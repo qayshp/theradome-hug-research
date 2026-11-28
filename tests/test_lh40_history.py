@@ -1,5 +1,6 @@
 import contextlib
 from io import StringIO
+import os
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -12,6 +13,7 @@ sys.path.insert(0, str(TOOLS))
 import lh40_history as cli
 
 
+PORT = "COM7" if os.name == "nt" else "/dev/ttyUSB0"
 DISPLAY = (
     b"***** TREATMENTS COMPLETED LOG *****\r\n"
     b"# Date DOW Time Battery Temp(C) Laser Current(mA)\r\n"
@@ -43,7 +45,7 @@ class HistoryCommandTests(unittest.TestCase):
 
     def run_usb_command(self, mode):
         return cli.main([mode, "--archive", str(self.archive),
-                         "--hug-dir", str(self.archive), "--port", "COM7"])
+                         "--hug-dir", str(self.archive), "--port", PORT])
 
     def test_replay_preserves_raw_bytes_and_updates_archive_once(self):
         with patch.object(cli, "get_chart_renderer", return_value=fake_chart):
@@ -76,8 +78,8 @@ class HistoryCommandTests(unittest.TestCase):
         self.assertIn(new_log, [path.read_bytes() for path in captures])
 
     def test_usb_import_routes_only_to_the_read_mode(self):
-        def fake_usb(mode, runtime, port, capture, wake_seconds):
-            self.assertEqual((mode, port, wake_seconds), ("import", "COM7", 60))
+        def fake_usb(mode, runtime, port, capture, wake_seconds, *, progress):
+            self.assertEqual((mode, port, wake_seconds, progress), ("import", PORT, 60, None))
             (capture / "treatments.txt").write_bytes(DISPLAY)
             (capture / "treatment-count.txt").write_text("1\n", encoding="ascii")
             (capture / "clock-before.txt").write_bytes(

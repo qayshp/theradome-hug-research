@@ -1,4 +1,4 @@
-// Nashorn bridge for the Windows HUG serial driver and normal vendor login.
+// Nashorn bridge for the HUG serial driver and normal vendor login.
 // The caller gives each session its own private, existing capture directory.
 var BOARD_PROMPT = /THERADOME LH(?:40|80)[ \t]+-[ \t]+BOARD TEST[^\r\n]*[\r\n]+Press \[\?\] for Menu\.\.\.\[ESC\] to Exit/;
 var LOGIN_PROMPT = /Enter Password[ \t]*-/;
@@ -9,6 +9,16 @@ var DATE_PROMPT = /Enter Date as YYYY-MM-DD-WW[\s]*WW - 00=Sunday\.\.06=Saturday
 var TIME_PROMPT = /Enter Time as HH:MM:SS[ \t]*-[ \t]+$/;
 var CLOCK_ACK = /(?:^|[\r\n])Date Set[ \t]*[\r\n]/;
 var CLOCK_TOLERANCE_MS = 2000;
+
+function normalizePortName(value) {
+    if (value !== value.trim()) return null;
+    if (/^COM[1-9][0-9]*$/i.test(value)) return value.toUpperCase();
+    // POSIX device paths and by-id symlinks are case-sensitive.
+    if (/^\/dev\/(?:cu\.[A-Za-z0-9][A-Za-z0-9._:-]*|tty(?:USB|ACM)[0-9]+|serial\/by-id\/[A-Za-z0-9][A-Za-z0-9._:-]*)$/.test(value)) {
+        return value;
+    }
+    return null;
+}
 
 function countFromParameters(raw) {
     var match = /(?:^|[\r\n])ERROR COUNTERS[\s]+0[ \t]+(-?\d+)[ \t]*[\r\n]/.exec(raw);
@@ -206,11 +216,11 @@ function main(args) {
     var ByteArrayOutputStream = Java.type("java.io.ByteArrayOutputStream");
     var PrintStream = Java.type("java.io.PrintStream");
     var mode = String(args[0]);
-    var portName = String(args[1]).toUpperCase();
+    var portName = normalizePortName(String(args[1]));
     var wakeSeconds = Number(args[3]);
     if (args.length !== 4 || (mode !== "import" && mode !== "sync-clock") ||
-            !/^COM[1-9]\d*$/.test(portName) || !/^[1-9]\d*$/.test(String(args[3])) || wakeSeconds > 300) {
-        throw new Error("Usage: import|sync-clock COMn CAPTURE_DIR WAKE_SECONDS (1–300)");
+            !portName || !/^[1-9]\d*$/.test(String(args[3])) || wakeSeconds > 300) {
+        throw new Error("Usage: import|sync-clock PORT CAPTURE_DIR WAKE_SECONDS (1–300)");
     }
     var path = Paths.get(String(args[2]));
     if (!Files.isDirectory(path)) throw new Error("The local capture directory must already exist.");
