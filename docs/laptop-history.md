@@ -65,4 +65,6 @@ python -B -m unittest discover -s tests -p 'test_lh40_*.py'
 node tests/test_lh40_usb.js
 ```
 
-On the physical LH40, the tool read the clock and treatment log over USB, added one new treatment to the existing CSV, and regenerated the chart. The simulated cases cover the terminal-clear sequences that preceded the live clock report. The tool’s clock-write sequence is tested offline. An earlier hardware session exercised the same clock protocol. [Live clock check](verification.md#live-evo-lh40-tests)
+On the physical LH40, the tool read the clock and treatment log over USB, added one new treatment to the existing CSV, and regenerated the chart. The simulated cases cover the terminal-clear sequences that preceded the live clock report.
+
+A separate live run verified `sync-clock`. The helmet was about 11 seconds ahead, acknowledged the write with `Date Set`, and then returned two readings that advanced by two seconds and matched the laptop’s displayed second. [Clock protocol and earlier hardware check](verification.md#live-evo-lh40-tests)
