@@ -1,6 +1,6 @@
 # The firmware image that HUG distributed
 
-The Mac HUG ZIP contains `Resources/myapp.jar`. The JAR contains a file named `myTheradome.hex`. Its 111,967 bytes match the firmware HUG was written to fetch as `my.hex` from GitHub. Each contains the strings `THERADOME LH80` in the command-menu and board-test headings, at PIC program addresses `0x1C4D` and `0x1C78`. The stock archive, the updater URL in the Java code and the SHA-256 comparison establish the link between them. The investigation started with an EVO LH40. Whether that unit runs this exact image remains unknown. [Discovery record](discovery.md) · [Firmware at a pinned upstream revision](https://raw.githubusercontent.com/renuraja03/fwupdate/ad6e0558454a12b60f1da2ef65a3cfba5dc5bb26/my.hex)
+The Mac HUG ZIP contains `Resources/myapp.jar`, which includes `myTheradome.hex`. Its 111,967 bytes match `my.hex` from HUG’s configured download URL. Each contains `THERADOME LH80` in the command-menu and board-test headings at PIC program addresses `0x1C4D` and `0x1C78`. The original on-device application on the tested EVO LH40 has no flash readback for comparison. A later update based on this archive booted and recalibrated on that helmet, and the owner reported completing a full treatment. [Discovery record](discovery.md) · [Firmware at a pinned upstream revision](https://raw.githubusercontent.com/renuraja03/fwupdate/ad6e0558454a12b60f1da2ef65a3cfba5dc5bb26/my.hex) · [Live count-readout update](volume-settings.md#live-count-readout-update)
 
 ## Two representations of the same application
 
